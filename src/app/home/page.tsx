@@ -37,7 +37,7 @@ import { sfx, startBgm } from "@/components/birthday/sound"
 // ============================================================
 
 // 6 wishes — mix of formal + casual + DKV-art references.
-// Sender = Kirie. Tone = rarely fully serious, sometimes semi-serious.
+// Sender = System Kirie AI. Tone = rarely fully serious, sometimes semi-serious.
 // Yava is a DKV student who's still insecure about their art talent.
 const WISHES = [
   {
