@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   keywords: ["ulang tahun", "birthday", "21", "room", "ritual"],
   authors: [{ name: "Birthday Room" }],
   icons: {
-    icon: "/public/logo.png",
+    icon: "src/app/logo.svg",
   },
   openGraph: {
     title: "21 · Room Aktif",
