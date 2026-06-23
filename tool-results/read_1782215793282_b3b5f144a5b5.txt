@@ -1,0 +1,943 @@
+     1→'use client'
+     2→
+     3→import { useState, useRef, useEffect } from "react"
+     4→import Link from "next/link"
+     5→import { motion, AnimatePresence } from "framer-motion"
+     6→import {
+     7→  Zap,
+     8→  Scale,
+     9→  Compass,
+    10→  Swords,
+    11→  Sparkle,
+    12→  ArrowRight,
+    13→  Eye,
+    14→  Gift as GiftIcon,
+    15→  Edit3,
+    16→  Check,
+    17→  Lock,
+    18→  Link2,
+    19→} from "lucide-react"
+    20→import { Particles } from "@/components/birthday/particles"
+    21→import { ConfettiBurst } from "@/components/birthday/confetti-burst"
+    22→import { Lightning } from "@/components/birthday/lightning"
+    23→import { RoomEffect } from "@/components/birthday/room-effect"
+    24→import { Navbar } from "@/components/birthday/navbar"
+    25→import { sfx, startBgm } from "@/components/birthday/sound"
+    26→
+    27→// ============================================================
+    28→//  HOME · Main Birthday Page
+    29→//
+    30→//  Sections:
+    31→//   1. Hero — "21" with lightning, name (default Yava), subtitle
+    32→//   2. Candle Ritual (Ritual 01) → Eye → Lightning → Room
+    33→//      After candle blown → gateway links to subpages revealed
+    34→//   3. Wishes — 6 messages for Yava (DKV student, art-relatable,
+    35→//      encouragement + casual/joke mix)
+    36→//   4. Closing — sign-off from Kirie
+    37→// ============================================================
+    38→
+    39→// 6 wishes — mix of formal + casual + DKV-art references.
+    40→// Sender = Kirie. Tone = rarely fully serious, sometimes semi-serious.
+    41→// Yava is a DKV student who's still insecure about their art talent.
+    42→const WISHES = [
+    43→  {
+    44→    num: "01",
+    45→    title: "Trust Your Stroke",
+    46→    message:
+    47→      "Yav, setiap stroke yang kamu buat — meskipun menurutmu masih 'jelek' — itu tanda tanganmu sendiri. Nggak ada yang punya line yang sama. Aku tahu kadang kamu ngerasa kayaknya belum cukup, atau bandinginnya sama orang lain sampai lupa liat kemajuan sendiri. Tapi coba deh buka sketchbook kamu setahun lalu, lalu buka yang sekarang. Beda banget kan? Itu nyata. Trust the process, trust your hand, trust your eye. Style kamu nggak akan datang dari nge-copy orang lain — itu muncul dari konsisten ngelukis yang kamu suka.",
+    48→    icon: Zap,
+    49→  },
+    50→  {
+    51→    num: "02",
+    52→    title: "Teguh Sama Pilihan",
+    53→    message:
+    54→      "Kayak Cyno yang berdiri tegak di padang pasir Sumeru, semoga kamu juga tetap tegas sama prinsip yang kamu pegang. Nggak goyah sama arus, nggak tergesa sama waktu, nggak tergiur jalan pintas. Pendirianmu itu pedangmu — rawat baik-baik. Dan kalau ada yang nyoba suruh kamu 'kompromi' sama hal yang melanggar prinsip, anggap aja mereka lagi request revisi ke-99 tanpa bayar. Tolak sopan, tetap di garis kamu.",
+    55→    icon: Scale,
+    56→  },
+    57→  {
+    58→    num: "03",
+    59→    title: "Open New Room",
+    60→    message:
+    61→      "Kayak Trafalgar Law yang buka ROOM dan define ulang medan pertempurannya, di umur 21 ini kamu punya kekuatan yang sama. Kamu bisa batasin ulang siapa yang masuk ke hidupmu, kamu bisa pindahin hal-hal yang nggak lagi melayani kamu, kamu bisa tentuin aturan mainmu sendiri. Anggap aja tahun ini kamu dapat fresh canvas baru — kosong, tapi penuh possibility. Tinggal kamu mau canvas-nya diisi apa. Jangan takut mulai dari nol; bagian terbaiknya justru di situ.",
+    62→    icon: Compass,
+    63→  },
+    64→  {
+    65→    num: "04",
+    66→    title: "Brave Without Limit",
+    67→    message:
+    68→      "Tahun ini medan pertempuranmu. Bawa pedang keyakinan, kenakan jati diri sebagai baju zirah, taklukkan setiap ombak yang menghadang. Law pernah bilang, orang yang nggak siap mati nggak bisa jadi pengendali kematian. Maka bersiap — bukan buat mati, tapi buat benar-benar hidup. Kadang hidup penuh itu berarti ikut kemana hati bawa, meskipun nyali. Kontras itu penting di desain, dan penting juga di hidup. Jangan takut sama dark mode — di situ warna kamu paling keliatan.",
+    69→    icon: Swords,
+    70→  },
+    71→  {
+    72→    num: "05",
+    73→    title: "Contrast & Whitespace",
+    74→    message:
+    75→      "Sebagai anak DKV, kamu pasti paham: kontras itu yang bikin elemen menonjol, whitespace itu yang kasih ruang buat napas. Tahun ini, semoga hidupmu punya keduanya. Cukup kerja, cukup main. Cukup serius, cukup joke. Kalau ketemu dosen toxic atau client jail, jangan ragu reject — itu juga bagian dari design decision, dan kamu mah udah expert. Negative space di jadwal kamu, jaga baik-baik; kadang yang nggak diisi justru yang paling strong.",
+    76→    icon: Sparkle,
+    77→  },
+    78→  {
+    79→    num: "06",
+    80→    title: "Always Same Room",
+    81→    message:
+    82→      "Sebagai orang yang kenal kamu, kita nggak harus selalu satu kapal — kadang kamu di Room-mu, aku di Room-ku. Tapi kalau kamu butuh anchor, atau butuh orang yang bisa diajak ribut soal kerning, komposisi, atau hal-hal kecil yang ternyata penting banget, kamu tahu di mana nemuin aku. Selamat ulang tahun, Yav. Trim sebelumnya udah jadi orang yang bisa diajak ngobrolin hal random sampai jam berapa pun. Spill kapan aja, aku siap dengerin (atau minimal react +1 dulu). Eh, ngomong-ngomong, jangan insecure lagi ya sama artwork kamu. Aku yang nggak ngerti desain aja bisa liat kamu punya taste.",
+    83→    icon: Eye,
+    84→  },
+    85→]
+    86→
+    87→export default function HomePage() {
+    88→  const [name, setName] = useState("Yava")
+    89→  const [editingName, setEditingName] = useState(false)
+    90→  const [tempName, setTempName] = useState("")
+    91→  const [candleBlown, setCandleBlown] = useState(false)
+    92→  const [confettiTrigger, setConfettiTrigger] = useState(0)
+    93→  const [lightningTrigger, setLightningTrigger] = useState(0)
+    94→  const [roomActive, setRoomActive] = useState(false)
+    95→  const [eyeFlash, setEyeFlash] = useState(false)
+    96→  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+    97→
+    98→  // Sequential unlock state — games must be completed in order:
+    99→  //   Cyno ritual (ritual 02-04) → unlocks Law room
+   100→  //   Law room (chamber 01-05)   → unlocks Gift claim
+   101→  // Persist in localStorage so progress survives page navigation.
+   102→  const [ritualDone, setRitualDone] = useState(false)
+   103→  const [roomDone, setRoomDone] = useState(false)
+   104→
+   105→  useEffect(() => {
+   106→    try {
+   107→      const r = localStorage.getItem("yava21_ritual_done") === "1"
+   108→      const rm = localStorage.getItem("yava21_room_done") === "1"
+   109→      if (r) setRitualDone(true)
+   110→      if (rm) setRoomDone(true)
+   111→    } catch {}
+   112→  }, [])
+   113→
+   114→  const markRitualDone = () => {
+   115→    setRitualDone(true)
+   116→    try { localStorage.setItem("yava21_ritual_done", "1") } catch {}
+   117→  }
+   118→  const markRoomDone = () => {
+   119→    setRoomDone(true)
+   120→    try { localStorage.setItem("yava21_room_done", "1") } catch {}
+   121→  }
+   122→
+   123→  // Listen for storage events from other tabs/pages
+   124→  useEffect(() => {
+   125→    const onStorage = (e: StorageEvent) => {
+   126→      if (e.key === "yava21_ritual_done" && e.newValue === "1") setRitualDone(true)
+   127→      if (e.key === "yava21_room_done" && e.newValue === "1") setRoomDone(true)
+   128→    }
+   129→    window.addEventListener("storage", onStorage)
+   130→    return () => window.removeEventListener("storage", onStorage)
+   131→  }, [])
+   132→
+   133→  // Also poll localStorage when window refocuses (same-tab navigation)
+   134→  useEffect(() => {
+   135→    const onFocus = () => {
+   136→      try {
+   137→        if (localStorage.getItem("yava21_ritual_done") === "1") setRitualDone(true)
+   138→        if (localStorage.getItem("yava21_room_done") === "1") setRoomDone(true)
+   139→      } catch {}
+   140→    }
+   141→    window.addEventListener("focus", onFocus)
+   142→    window.addEventListener("pageshow", onFocus)
+   143→    return () => {
+   144→      window.removeEventListener("focus", onFocus)
+   145→      window.removeEventListener("pageshow", onFocus)
+   146→    }
+   147→  }, [])
+   148→
+   149→  // ============================================================
+   150→  //  Ritual 01 — Candle → Eye → Lightning → Room → Confetti
+   151→  //  Reframed causal chain:
+   152→  //   1. Blow candle → smoke carries wish up
+   153→  //   2. Eye of Anubis flashes (Cyno sees the wish, judges intent)
+   154→  //   3. Judgement lightning (verdict delivered — Cyno's element)
+   155→  //   4. Room dome materializes in the lightning's residual energy
+   156→  //      (Law's spatial rift — gateway to deliver the message)
+   157→  //   5. Confetti + hidden message (wish has arrived on the other side)
+   158→  // ============================================================
+   159→  const handleBlowCandle = () => {
+   160→    sfx.candleBlow()
+   161→
+   162→    if (!candleBlown) {
+   163→      setCandleBlown(true)
+   164→      runRitualSequence()
+   165→    } else {
+   166→      // Reset and re-trigger
+   167→      setRoomActive(false)
+   168→      setCandleBlown(false)
+   169→      setEyeFlash(false)
+   170→      const t = setTimeout(() => {
+   171→        sfx.candleBlow()
+   172→        setCandleBlown(true)
+   173→        runRitualSequence()
+   174→      }, 400)
+   175→      timersRef.current.push(t)
+   176→    }
+   177→  }
+   178→
+   179→  const runRitualSequence = () => {
+   180→    // Step 2 — Eye of Anubis flash
+   181→    const t1 = setTimeout(() => {
+   182→      setEyeFlash(true)
+   183→      sfx.eyeFlash()
+   184→    }, 300)
+   185→    timersRef.current.push(t1)
+   186→
+   187→    // Step 3 — Judgement lightning
+   188→    const t2 = setTimeout(() => {
+   189→      setEyeFlash(false)
+   190→      setLightningTrigger((t) => t + 1)
+   191→      sfx.judgement()
+   192→    }, 700)
+   193→    timersRef.current.push(t2)
+   194→
+   195→    // Step 4 — Room opens
+   196→    const t3 = setTimeout(() => {
+   197→      setRoomActive(true)
+   198→      sfx.roomOpen()
+   199→    }, 1000)
+   200→    timersRef.current.push(t3)
+   201→
+   202→    // Step 5 — Confetti
+   203→    const t4 = setTimeout(() => {
+   204→      setConfettiTrigger((t) => t + 1)
+   205→    }, 1400)
+   206→    timersRef.current.push(t4)
+   207→  }
+   208→
+   209→  const startEdit = () => {
+   210→    setTempName(name)
+   211→    setEditingName(true)
+   212→    sfx.click()
+   213→  }
+   214→
+   215→  const saveName = () => {
+   216→    if (tempName.trim()) {
+   217→      setName(tempName.trim())
+   218→    }
+   219→    setEditingName(false)
+   220→    sfx.click()
+   221→  }
+   222→
+   223→  return (
+   224→    <div className="min-h-screen flex flex-col bg-black text-white relative overflow-hidden">
+   225→      {/* Ambient background — keep subtle, no harsh boxes */}
+   226→      <div className="fixed inset-0 pointer-events-none z-0">
+   227→        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-purple-700/15 rounded-full blur-[150px]" />
+   228→        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-violet-900/20 rounded-full blur-[120px]" />
+   229→      </div>
+   230→
+   231→      <Navbar />
+   232→      <Particles />
+   233→      <ConfettiBurst trigger={confettiTrigger} />
+   234→      <Lightning trigger={lightningTrigger} />
+   235→
+   236→      <main className="flex-1 relative z-10">
+   237→        {/* ============ HERO ============ */}
+   238→        <section className="min-h-[90vh] flex flex-col items-center justify-center px-4 py-20 text-center relative">
+   239→          {/* Date label — 22.06 · 21 */}
+   240→          <motion.div
+   241→            initial={{ opacity: 0, y: -10 }}
+   242→            animate={{ opacity: 1, y: 0 }}
+   243→            transition={{ duration: 0.6 }}
+   244→            className="mb-10"
+   245→          >
+   246→            <div className="inline-flex items-center gap-3 text-purple-400">
+   247→              <span className="w-8 h-px bg-purple-500/50" />
+   248→              <span className="text-xs tracking-[0.5em] font-mono">22.06 · GENAP 21</span>
+   249→              <span className="w-8 h-px bg-purple-500/50" />
+   250→            </div>
+   251→          </motion.div>
+   252→
+   253→          {/* Main greeting */}
+   254→          <motion.h1
+   255→            initial={{ opacity: 0, y: 20 }}
+   256→            animate={{ opacity: 1, y: 0 }}
+   257→            transition={{ duration: 0.8, delay: 0.2 }}
+   258→            className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tight leading-[1.1] mb-3"
+   259→          >
+   260→            Happy
+   261→            <br />
+   262→            <span className="bg-gradient-to-r from-purple-300 via-purple-400 to-violet-500 bg-clip-text text-transparent">
+   263→              Birthday
+   264→            </span>
+   265→          </motion.h1>
+   266→
+   267→          {/* Name (editable) — default Yava */}
+   268→          <motion.div
+   269→            initial={{ opacity: 0, scale: 0.9 }}
+   270→            animate={{ opacity: 1, scale: 1 }}
+   271→            transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
+   272→            className="mb-8"
+   273→          >
+   274→            {editingName ? (
+   275→              <div className="inline-flex items-center gap-2 flex-wrap justify-center">
+   276→                <input
+   277→                  type="text"
+   278→                  value={tempName}
+   279→                  onChange={(e) => setTempName(e.target.value)}
+   280→                  onKeyDown={(e) => e.key === "Enter" && saveName()}
+   281→                  autoFocus
+   282→                  placeholder="Enter name"
+   283→                  className="px-3 py-1 text-2xl sm:text-3xl font-bold text-center bg-transparent border-b-2 border-purple-500 outline-none text-white min-w-[180px]"
+   284→                />
+   285→                <button
+   286→                  onClick={saveName}
+   287→                  className="p-1.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+   288→                  aria-label="Save name"
+   289→                >
+   290→                  <Check className="w-4 h-4" />
+   291→                </button>
+   292→              </div>
+   293→            ) : (
+   294→              <button
+   295→                onClick={startEdit}
+   296→                onMouseEnter={() => sfx.hover()}
+   297→                className="group inline-flex items-center gap-2 hover:text-purple-300 transition-colors"
+   298→              >
+   299→                <span className="text-2xl sm:text-3xl font-bold tracking-wide">{name}</span>
+   300→                <Edit3 className="w-3.5 h-3.5 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+   301→              </button>
+   302→            )}
+   303→          </motion.div>
+   304→
+   305→          {/* Big 21 — lightning bolts around it UNTOUCHED (revision #1) */}
+   306→          <motion.div
+   307→            initial={{ opacity: 0, scale: 0.5 }}
+   308→            animate={{ opacity: 1, scale: 1 }}
+   309→            transition={{ delay: 0.7, type: "spring", stiffness: 100 }}
+   310→            className="relative mb-8"
+   311→          >
+   312→            <div className="relative">
+   313→              <div className="absolute inset-0 bg-purple-600/40 blur-3xl scale-150" />
+   314→              <motion.div
+   315→                animate={{
+   316→                  textShadow: [
+   317→                    "0 0 20px rgba(168,85,247,0.5)",
+   318→                    "0 0 40px rgba(168,85,247,0.8)",
+   319→                    "0 0 20px rgba(168,85,247,0.5)",
+   320→                  ],
+   321→                }}
+   322→                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+   323→                className="relative text-[10rem] sm:text-[14rem] md:text-[18rem] font-black leading-none tracking-tighter bg-gradient-to-b from-white via-purple-200 to-purple-600 bg-clip-text text-transparent"
+   324→              >
+   325→                21
+   326→              </motion.div>
+   327→
+   328→              {/* Lightning bolts AROUND the number — keep as-is per user request */}
+   329→              <motion.div
+   330→                className="absolute -left-6 top-1/4 text-purple-400"
+   331→                animate={{ opacity: [0.2, 1, 0.2], scale: [0.9, 1.1, 0.9] }}
+   332→                transition={{ duration: 2, repeat: Infinity }}
+   333→              >
+   334→                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-purple-400" />
+   335→              </motion.div>
+   336→              <motion.div
+   337→                className="absolute -right-6 bottom-1/4 text-purple-400"
+   338→                animate={{ opacity: [0.2, 1, 0.2], scale: [0.9, 1.1, 0.9] }}
+   339→                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+   340→              >
+   341→                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-purple-400" />
+   342→              </motion.div>
+   343→              <motion.div
+   344→                className="absolute -left-2 bottom-0 text-violet-500"
+   345→                animate={{ opacity: [0.1, 0.8, 0.1] }}
+   346→                transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+   347→              >
+   348→                <Zap className="w-3 h-3 fill-violet-500" />
+   349→              </motion.div>
+   350→              <motion.div
+   351→                className="absolute -right-2 top-0 text-violet-500"
+   352→                animate={{ opacity: [0.1, 0.8, 0.1] }}
+   353→                transition={{ duration: 1.5, repeat: Infinity, delay: 0.8 }}
+   354→              >
+   355→                <Zap className="w-3 h-3 fill-violet-500" />
+   356→              </motion.div>
+   357→            </div>
+   358→          </motion.div>
+   359→
+   360→          {/* Subtitle */}
+   361→          <motion.p
+   362→            initial={{ opacity: 0 }}
+   363→            animate={{ opacity: 1 }}
+   364→            transition={{ delay: 1 }}
+   365→            className="text-base sm:text-lg text-white/60 max-w-md leading-relaxed"
+   366→          >
+   367→            New year. New adventure. New power.
+   368→            <br />
+   369→            Welcome to the bigger field.
+   370→          </motion.p>
+   371→
+   372→          {/* Scroll indicator */}
+   373→          <motion.div
+   374→            initial={{ opacity: 0 }}
+   375→            animate={{ opacity: 1 }}
+   376→            transition={{ delay: 1.4 }}
+   377→            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+   378→          >
+   379→            <motion.div
+   380→              animate={{ y: [0, 8, 0] }}
+   381→              transition={{ duration: 2, repeat: Infinity }}
+   382→              className="w-px h-12 bg-gradient-to-b from-purple-500 to-transparent"
+   383→            />
+   384→          </motion.div>
+   385→        </section>
+   386→
+   387→        {/* ============ CANDLE RITUAL (Ritual 01) ============ */}
+   388→        <section className="py-24 px-4 relative">
+   389→          <div className="max-w-2xl mx-auto text-center">
+   390→            <motion.div
+   391→              initial={{ opacity: 0 }}
+   392→              whileInView={{ opacity: 1 }}
+   393→              viewport={{ once: true }}
+   394→              className="mb-4"
+   395→            >
+   396→              <span className="text-xs tracking-[0.4em] font-mono text-purple-500">
+   397→                RITUAL · 01 ·{" "}
+   398→                <ruby>
+   399→                  儀式<rt>ぎしき</rt>
+   400→                </ruby>
+   401→              </span>
+   402→            </motion.div>
+   403→
+   404→            <motion.h2
+   405→              initial={{ opacity: 0, y: 20 }}
+   406→              whileInView={{ opacity: 1, y: 0 }}
+   407→              viewport={{ once: true }}
+   408→              className="text-3xl sm:text-5xl font-black uppercase mb-4"
+   409→            >
+   410→              {candleBlown ? (
+   411→                <span className="bg-gradient-to-r from-purple-300 to-violet-500 bg-clip-text text-transparent">
+   412→                  Room Aktif
+   413→                </span>
+   414→              ) : (
+   415→                <>Kirim Permohonan</>
+   416→              )}
+   417→            </motion.h2>
+   418→
+   419→            <motion.p
+   420→              initial={{ opacity: 0 }}
+   421→              whileInView={{ opacity: 1 }}
+   422→              viewport={{ once: true }}
+   423→              className="text-white/60 mb-12 max-w-md mx-auto"
+   424→            >
+   425→              {candleBlown
+   426→                ? "Mata Anubis melihat. Petir pengadilan menyambar. Room terbuka. Pesanmu kini berada di sisi lain."
+   427→                : "Tiup lilin. Asap permohonanmu naik. Mata Anubis menilai niatmu. Petir pengadilan menyambar. Room terbuka — pesanmu sampai ke dimensi paralel."}
+   428→            </motion.p>
+   429→
+   430→            {/* Cake + ROOM container — single visual, no extra boxes */}
+   431→            <div className="relative w-full max-w-[520px] aspect-square mx-auto mb-10 flex items-center justify-center">
+   432→              <RoomEffect active={roomActive} />
+   433→
+   434→              <AnimatePresence>
+   435→                {eyeFlash && (
+   436→                  <motion.div
+   437→                    initial={{ scale: 0, opacity: 0, rotate: -90 }}
+   438→                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+   439→                    exit={{ scale: 1.4, opacity: 0, rotate: 90 }}
+   440→                    transition={{ type: "spring", stiffness: 300, damping: 18 }}
+   441→                    className="absolute top-[18%] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+   442→                  >
+   443→                    <Eye
+   444→                      className="w-12 h-12 text-amber-300"
+   445→                      style={{
+   446→                        filter:
+   447→                          "drop-shadow(0 0 12px rgba(251,191,36,0.9)) drop-shadow(0 0 24px rgba(251,191,36,0.6))",
+   448→                      }}
+   449→                    />
+   450→                  </motion.div>
+   451→                )}
+   452→              </AnimatePresence>
+   453→
+   454→              <motion.div
+   455→                className="relative z-10"
+   456→                animate={candleBlown ? { y: [0, -3, 0] } : {}}
+   457→                transition={{ duration: 0.4 }}
+   458→              >
+   459→                <CakeSVG blown={candleBlown} />
+   460→              </motion.div>
+   461→
+   462→              <AnimatePresence>
+   463→                {roomActive && (
+   464→                  <motion.div
+   465→                    initial={{ opacity: 0, scale: 0.3, letterSpacing: "0.5em" }}
+   466→                    animate={{
+   467→                      opacity: [0, 1, 1, 0.7, 0],
+   468→                      scale: [0.3, 1.1, 1, 1.05, 1.2],
+   469→                      letterSpacing: ["0.5em", "0.3em", "0.3em", "0.4em", "0.6em"],
+   470→                    }}
+   471→                    exit={{ opacity: 0 }}
+   472→                    transition={{ duration: 2, times: [0, 0.2, 0.5, 0.8, 1] }}
+   473→                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+   474→                  >
+   475→                    <span className="text-5xl sm:text-7xl font-black tracking-[0.3em] text-purple-300 bg-gradient-to-b from-white to-purple-400 bg-clip-text text-transparent">
+   476→                      ROOM
+   477→                    </span>
+   478→                  </motion.div>
+   479→                )}
+   480→              </AnimatePresence>
+   481→            </div>
+   482→
+   483→            {/* Action button — also the gateway: clicking reveals subpage links */}
+   484→            <motion.button
+   485→              whileHover={{ scale: 1.03 }}
+   486→              whileTap={{ scale: 0.97 }}
+   487→              onClick={handleBlowCandle}
+   488→              onMouseEnter={() => sfx.hover()}
+   489→              className="group relative inline-flex items-center gap-3 px-8 py-4 overflow-hidden border border-purple-500/50 hover:border-purple-400 transition-colors"
+   490→            >
+   491→              <span className="absolute inset-0 bg-purple-600/0 group-hover:bg-purple-600/20 transition-colors" />
+   492→              <span className="absolute left-0 top-0 h-full w-px bg-purple-500/0 group-hover:bg-purple-500/100 transition-all duration-500 group-hover:w-full" />
+   493→              <Zap className="relative w-4 h-4 text-purple-400 group-hover:text-white transition-colors" />
+   494→              <span className="relative text-sm font-bold uppercase tracking-[0.2em] text-white group-hover:text-white transition-colors">
+   495→                {candleBlown ? "Ulangi Ritual" : "Tiup Lilin"}
+   496→              </span>
+   497→            </motion.button>
+   498→
+   499→            {/* Hidden message + gateway links — only after candle blown */}
+   500→            <AnimatePresence>
+   501→              {candleBlown && (
+   502→                <motion.div
+   503→                  initial={{ opacity: 0, y: 30, height: 0 }}
+   504→                  animate={{ opacity: 1, y: 0, height: "auto" }}
+   505→                  exit={{ opacity: 0, y: -20, height: 0 }}
+   506→                  transition={{ delay: 1.4, duration: 0.8 }}
+   507→                  className="mt-16 overflow-hidden"
+   508→                >
+   509→                  {/* Divider with sigil — replaces "box" framing */}
+   510→                  <div className="flex items-center gap-4 mb-10">
+   511→                    <span className="flex-1 h-px bg-gradient-to-r from-transparent to-purple-500/50" />
+   512→                    <Sparkle className="w-4 h-4 text-purple-400" />
+   513→                    <span className="flex-1 h-px bg-gradient-to-l from-transparent to-purple-500/50" />
+   514→                  </div>
+   515→
+   516→                  <p className="text-xs tracking-[0.4em] font-mono text-purple-500 mb-4">
+   517→                    PESAN MASUK
+   518→                  </p>
+   519→
+   520→                  <blockquote className="text-xl sm:text-2xl font-medium leading-relaxed text-white/90 mb-4 italic">
+   521→                    &ldquo;Setiap orang punya Room-nya sendiri. Di dalamnya, kamu adalah
+   522→                    pengendali. Tahun ini, buka Room-mu — dan ambil kendali penuh atas
+   523→                    medan yang kamu pijak.&rdquo;
+   524→                  </blockquote>
+   525→
+   526→                  <p className="text-sm text-purple-400 tracking-wide mb-10">
+   527→                    — Kirie, dari sisi lain ROOM
+   528→                  </p>
+   529→
+   530→                  {/* Gateway links — text + arrow, locked state shows chain icon */}
+   531→                  <div className="space-y-4 max-w-md mx-auto mb-6 text-left">
+   532→                    {/* Cyno ritual — always unlocked (gate is the candle blow) */}
+   533→                    <Link
+   534→                      href="/ritual"
+   535→                      onClick={() => sfx.click()}
+   536→                      onMouseEnter={() => sfx.hover()}
+   537→                      className="group flex items-center justify-between gap-4 py-3 border-b border-purple-500/20 hover:border-amber-400/60 transition-colors"
+   538→                    >
+   539→                      <span className="flex-1">
+   540→                        <span className="block text-[10px] font-mono tracking-[0.3em] text-amber-400/80 mb-1">
+   541→                          RITUAL · 02-04
+   542→                        </span>
+   543→                        <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white group-hover:text-amber-200 transition-colors">
+   544→                          Pengadilan Cyno
+   545→                        </span>
+   546→                        <span className="block text-[10px] font-mono tracking-[0.2em] text-white/40 mt-1 uppercase">
+   547→                          Level/Age · 02 → 04
+   548→                        </span>
+   549→                      </span>
+   550→                      <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-2 transition-transform" />
+   551→                    </Link>
+   552→
+   553→                    {/* Law room — locked until Cyno ritual complete */}
+   554→                    {ritualDone ? (
+   555→                      <Link
+   556→                        href="/room"
+   557→                        onClick={() => sfx.click()}
+   558→                        onMouseEnter={() => sfx.hover()}
+   559→                        className="group flex items-center justify-between gap-4 py-3 border-b border-purple-500/20 hover:border-purple-400 transition-colors"
+   560→                      >
+   561→                        <span className="flex-1">
+   562→                          <span className="block text-[10px] font-mono tracking-[0.3em] text-purple-400/80 mb-1">
+   563→                            CHAMBER · 01-05
+   564→                          </span>
+   565→                          <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white group-hover:text-purple-200 transition-colors">
+   566→                            Room Law
+   567→                          </span>
+   568→                          <span className="block text-[10px] font-mono tracking-[0.2em] text-white/40 mt-1 uppercase">
+   569→                            Level/Age · 01 → 05
+   570→                          </span>
+   571→                        </span>
+   572→                        <ArrowRight className="w-4 h-4 text-purple-400 group-hover:translate-x-2 transition-transform" />
+   573→                      </Link>
+   574→                    ) : (
+   575→                      <div className="group flex items-center justify-between gap-4 py-3 border-b border-purple-500/10 opacity-50 cursor-not-allowed">
+   576→                        <span className="flex-1">
+   577→                          <span className="block text-[10px] font-mono tracking-[0.3em] text-purple-400/60 mb-1">
+   578→                            CHAMBER · 01-05 · LOCKED
+   579→                          </span>
+   580→                          <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white/60 flex items-center gap-2">
+   581→                            <Lock className="w-3.5 h-3.5 text-purple-500" />
+   582→                            Room Law
+   583→                          </span>
+   584→                          <span className="block text-[10px] font-mono tracking-[0.2em] text-white/30 mt-1 uppercase">
+   585→                            Level/Age · 01 → 05 · Selesaikan Cyno dulu
+   586→                          </span>
+   587→                        </span>
+   588→                        <Link2 className="w-4 h-4 text-purple-500/60" />
+   589→                      </div>
+   590→                    )}
+   591→
+   592→                    {/* Gift claim — locked until Law room complete */}
+   593→                    {roomDone ? (
+   594→                      <Link
+   595→                        href="/gift"
+   596→                        onClick={() => sfx.click()}
+   597→                        onMouseEnter={() => sfx.hover()}
+   598→                        className="group flex items-center justify-between gap-4 py-3 border-b border-purple-500/20 hover:border-pink-400/60 transition-colors"
+   599→                      >
+   600→                        <span className="flex-1">
+   601→                          <span className="block text-[10px] font-mono tracking-[0.3em] text-pink-400/80 mb-1">
+   602→                            HADIAH · KLAIM
+   603→                          </span>
+   604→                          <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white group-hover:text-pink-200 transition-colors">
+   605→                            Bounty Voucher
+   606→                          </span>
+   607→                          <span className="block text-[10px] font-mono tracking-[0.2em] text-white/40 mt-1 uppercase">
+   608→                            Level/Age · Final
+   609→                          </span>
+   610→                        </span>
+   611→                        <GiftIcon className="w-4 h-4 text-pink-400 group-hover:scale-110 transition-transform" />
+   612→                      </Link>
+   613→                    ) : (
+   614→                      <div className="group flex items-center justify-between gap-4 py-3 border-b border-purple-500/10 opacity-50 cursor-not-allowed">
+   615→                        <span className="flex-1">
+   616→                          <span className="block text-[10px] font-mono tracking-[0.3em] text-pink-400/60 mb-1">
+   617→                            HADIAH · KLAIM · LOCKED
+   618→                          </span>
+   619→                          <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white/60 flex items-center gap-2">
+   620→                            <Lock className="w-3.5 h-3.5 text-pink-500" />
+   621→                            Bounty Voucher
+   622→                          </span>
+   623→                          <span className="block text-[10px] font-mono tracking-[0.2em] text-white/30 mt-1 uppercase">
+   624→                            Level/Age · Final · Selesaikan Law dulu
+   625→                          </span>
+   626→                        </span>
+   627→                        <Link2 className="w-4 h-4 text-pink-500/60" />
+   628→                      </div>
+   629→                    )}
+   630→                  </div>
+   631→
+   632→                  {/* Stat row — single line, no boxes */}
+   633→                  <div className="mt-10 flex items-center justify-center gap-8 sm:gap-12 text-center">
+   634→                    <div>
+   635→                      <p className="text-3xl font-black text-purple-400 font-mono">21</p>
+   636→                      <p className="text-xs text-white/40 tracking-widest uppercase mt-1">Level/Age</p>
+   637→                    </div>
+   638→                    <span className="w-px h-10 bg-purple-500/30" />
+   639→                    <div>
+   640→                      <p className="text-3xl font-black text-purple-400 font-mono">∞</p>
+   641→                      <p className="text-xs text-white/40 tracking-widest uppercase mt-1">Possibility</p>
+   642→                    </div>
+   643→                    <span className="w-px h-10 bg-purple-500/30" />
+   644→                    <div>
+   645→                      <p className="text-3xl font-black text-purple-400 font-mono">01</p>
+   646→                      <p className="text-xs text-white/40 tracking-widest uppercase mt-1">Room Aktif</p>
+   647→                    </div>
+   648→                  </div>
+   649→                </motion.div>
+   650→              )}
+   651→            </AnimatePresence>
+   652→          </div>
+   653→        </section>
+   654→
+   655→        {/* ============ WISHES ============ */}
+   656→        <section id="wishes" className="py-24 px-4 relative scroll-mt-20">
+   657→          <div className="max-w-3xl mx-auto">
+   658→            <motion.div
+   659→              initial={{ opacity: 0 }}
+   660→              whileInView={{ opacity: 1 }}
+   661→              viewport={{ once: true }}
+   662→              className="mb-20 text-center"
+   663→            >
+   664→              <span className="text-xs tracking-[0.4em] font-mono text-purple-500">
+   665→                DOA · 01 — 06
+   666→              </span>
+   667→              <h2 className="mt-4 text-3xl sm:text-5xl font-black uppercase">
+   668→                Enam <span className="text-purple-400">Pesan</span>
+   669→                <br />
+   670→                Untuk Tahun Baru
+   671→              </h2>
+   672→              <p className="mt-4 text-sm text-white/40 italic">
+   673→                dari Kirie · untuk {name}
+   674→              </p>
+   675→            </motion.div>
+   676→
+   677→            <div className="space-y-0">
+   678→              {WISHES.map((wish, i) => {
+   679→                const Icon = wish.icon
+   680→                return (
+   681→                  <motion.div
+   682→                    key={wish.num}
+   683→                    initial={{ opacity: 0, y: 30 }}
+   684→                    whileInView={{ opacity: 1, y: 0 }}
+   685→                    viewport={{ once: true, margin: "-80px" }}
+   686→                    transition={{ duration: 0.6 }}
+   687→                    className="group relative"
+   688→                  >
+   689→                    <div className="grid grid-cols-[auto_1fr] gap-6 sm:gap-10 py-10">
+   690→                      <div className="text-5xl sm:text-7xl font-black font-mono text-purple-500/30 group-hover:text-purple-400/60 transition-colors leading-none">
+   691→                        {wish.num}
+   692→                      </div>
+   693→                      <div className="pt-1">
+   694→                        <div className="flex items-center gap-3 mb-4">
+   695→                          <Icon className="w-4 h-4 text-purple-400" />
+   696→                          <span className="w-6 h-px bg-purple-500/40" />
+   697→                          <h3 className="text-lg sm:text-2xl font-bold uppercase tracking-wide">
+   698→                            {wish.title}
+   699→                          </h3>
+   700→                        </div>
+   701→                        <p className="text-sm sm:text-base text-white/60 leading-relaxed max-w-2xl">
+   702→                          {wish.message}
+   703→                        </p>
+   704→                      </div>
+   705→                    </div>
+   706→                    {i < WISHES.length - 1 && (
+   707→                      <div className="h-px bg-gradient-to-r from-purple-500/30 via-purple-500/10 to-transparent" />
+   708→                    )}
+   709→                  </motion.div>
+   710→                )
+   711→              })}
+   712→            </div>
+   713→          </div>
+   714→        </section>
+   715→
+   716→        {/* ============ CLOSING ============ */}
+   717→        <section id="closing" className="py-32 px-4 text-center relative scroll-mt-20">
+   718→          <motion.div
+   719→            initial={{ opacity: 0, y: 30 }}
+   720→            whileInView={{ opacity: 1, y: 0 }}
+   721→            viewport={{ once: true }}
+   722→            className="max-w-2xl mx-auto relative"
+   723→          >
+   724→            <div className="absolute inset-0 bg-purple-600/10 blur-3xl scale-110" />
+   725→            <div className="relative">
+   726→              <Zap className="w-6 h-6 text-purple-400 mx-auto mb-6 fill-purple-400/30" />
+   727→              <p className="text-xl sm:text-2xl leading-relaxed text-white/90 font-light mb-6">
+   728→                Di tahun ke-21 ini, semoga kamu menemukan kekuatan seperti
+   729→                <span className="text-purple-300 font-medium"> Cyno </span>
+   730→                yang menegakkan keadilan dengan ketegasan, dan keberanian seperti
+   731→                <span className="text-purple-300 font-medium"> Law </span>
+   732→                yang menaklukkan lautan dengan strategi.
+   733→              </p>
+   734→              <p className="text-base text-white/60 mb-10">
+   735→                Kamu akan menaklukkan tahun ini. Aku yakin. Atau minimal — kamu akan desain tahun ini jadi keren. Same thing, basically. Eh, jangan insecure lagi ya sama bakat seni kamu. Aku yang nggak ngerti desain aja bisa liat kamu punya taste.
+   736→              </p>
+   737→              <div className="flex items-center justify-center gap-3 mb-2">
+   738→                <span className="w-6 h-px bg-purple-500/50" />
+   739→                <span className="text-xs tracking-[0.4em] font-mono text-purple-400">
+   740→                  DARI KIRIE
+   741→                </span>
+   742→                <span className="w-6 h-px bg-purple-500/50" />
+   743→              </div>
+   744→              <p className="text-sm text-purple-400/70">
+   745→                untuk {name}
+   746→              </p>
+   747→            </div>
+   748→          </motion.div>
+   749→        </section>
+   750→      </main>
+   751→
+   752→      <footer className="relative z-10 border-t border-purple-500/10 mt-auto">
+   753→        <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+   754→          <p className="text-xs text-white/30 font-mono tracking-widest">
+   755→            22 · 06 · BIRTHDAY
+   756→          </p>
+   757→          <p className="text-xs text-white/30 font-mono tracking-widest">
+   758→            ROOM · ACTIVE
+   759→          </p>
+   760→        </div>
+   761→      </footer>
+   762→    </div>
+   763→  )
+   764→}
+   765→
+   766→// ============ CAKE SVG ============
+   767→// Bigger, busier cake with Cyno + Law motifs:
+   768→//  - Bottom tier: Anubis eye symbol + wolf ears silhouette (Cyno)
+   769→//  - Middle tier: Heart Pirates smiley + sword cross (Law)
+   770→//  - Top tier: Lightning bolt + heart (their elements)
+   771→//  - Candle: purple flame
+   772→//  - Decorations: dots, dots, dots — but kept simple geometric
+   773→function CakeSVG({ blown }: { blown: boolean }) {
+   774→  return (
+   775→    <svg
+   776→      width="280"
+   777→      height="320"
+   778→      viewBox="0 0 280 320"
+   779→      className="drop-shadow-[0_0_24px_rgba(168,85,247,0.4)]"
+   780→    >
+   781→      {/* Plate */}
+   782→      <ellipse cx="140" cy="305" rx="125" ry="8" fill="#27272a" />
+   783→      <ellipse cx="140" cy="301" rx="125" ry="5" fill="#3f3f46" />
+   784→      <ellipse cx="140" cy="300" rx="115" ry="3" fill="#52525b" opacity="0.6" />
+   785→
+   786→      {/* ============ BOTTOM TIER (Cyno — wolf + Anubis eye) ============ */}
+   787→      <rect x="20" y="200" width="240" height="100" fill="#0a0a0a" />
+   788→      {/* Top trim */}
+   789→      <rect x="20" y="198" width="240" height="4" fill="#a855f7" />
+   790→      <rect x="20" y="202" width="240" height="1" fill="#c084fc" opacity="0.5" />
+   791→      {/* Bottom trim */}
+   792→      <rect x="20" y="296" width="240" height="3" fill="#7c3aed" opacity="0.6" />
+   793→
+   794→      {/* Wolf ears silhouette — left and right (Cyno jackal motif) */}
+   795→      <path d="M 30 200 L 38 178 L 50 200 Z" fill="#a855f7" opacity="0.5" />
+   796→      <path d="M 250 200 L 242 178 L 230 200 Z" fill="#a855f7" opacity="0.5" />
+   797→
+   798→      {/* Anubis Eye of Horus symbol — center bottom tier */}
+   799→      <g transform="translate(140, 250)">
+   800→        {/* Eye outline */}
+   801→        <path
+   802→          d="M -22 0 Q -11 -10 0 -10 Q 11 -10 22 0 Q 11 10 0 10 Q -11 10 -22 0 Z"
+   803→          fill="none"
+   804→          stroke="#c084fc"
+   805→          strokeWidth="1.5"
+   806→        />
+   807→        {/* Pupil */}
+   808→        <circle cx="0" cy="0" r="4" fill="#c084fc" opacity="0.8" />
+   809→        <circle cx="0" cy="0" r="2" fill="#e9d5ff" />
+   810→        {/* Eye of Horus tail mark */}
+   811→        <path d="M 22 0 Q 28 4 26 10" fill="none" stroke="#c084fc" strokeWidth="1.2" strokeLinecap="round" />
+   812→        <path d="M -22 0 Q -28 -4 -26 -10" fill="none" stroke="#c084fc" strokeWidth="1.2" strokeLinecap="round" />
+   813→      </g>
+   814→
+   815→      {/* Decorative purple dots — scattered (not boxed, simple) */}
+   816→      {[
+   817→        [40, 220], [55, 235], [70, 220], [85, 235],
+   818→        [200, 220], [215, 235], [230, 220], [245, 235],
+   819→        [40, 270], [55, 285], [70, 270], [85, 285],
+   820→        [200, 270], [215, 285], [230, 270], [245, 285],
+   821→      ].map(([x, y], i) => (
+   822→        <circle
+   823→          key={i}
+   824→          cx={x}
+   825→          cy={y}
+   826→          r={i % 2 === 0 ? 2 : 1.5}
+   827→          fill={i % 3 === 0 ? "#c084fc" : "#a855f7"}
+   828→          opacity={i % 2 === 0 ? 0.6 : 0.4}
+   829→        />
+   830→      ))}
+   831→
+   832→      {/* ============ MIDDLE TIER (Law — Heart Pirates + sword) ============ */}
+   833→      <rect x="55" y="135" width="170" height="65" fill="#18181b" />
+   834→      {/* Top trim */}
+   835→      <rect x="55" y="133" width="170" height="4" fill="#a855f7" />
+   836→      <rect x="55" y="137" width="170" height="1" fill="#c084fc" opacity="0.5" />
+   837→
+   838→      {/* Heart Pirates smiley — center (Law's flag) */}
+   839→      <g transform="translate(140, 167)">
+   840→        <circle cx="0" cy="0" r="14" fill="none" stroke="#d8b4fe" strokeWidth="1.5" />
+   841→        {/* Crossbones behind */}
+   842→        <line x1="-18" y1="-18" x2="18" y2="18" stroke="#d8b4fe" strokeWidth="1.2" opacity="0.6" />
+   843→        <line x1="-18" y1="18" x2="18" y2="-18" stroke="#d8b4fe" strokeWidth="1.2" opacity="0.6" />
+   844→        {/* Smile arc */}
+   845→        <path d="M -7 3 Q 0 8 7 3" fill="none" stroke="#d8b4fe" strokeWidth="1.5" strokeLinecap="round" />
+   846→        {/* Dot eyes */}
+   847→        <circle cx="-4" cy="-3" r="1.2" fill="#d8b4fe" />
+   848→        <circle cx="4" cy="-3" r="1.2" fill="#d8b4fe" />
+   849→      </g>
+   850→
+   851→      {/* Sword cross — left and right of heart (Law's nodachi) */}
+   852→      <g transform="translate(80, 168) rotate(45)">
+   853→        <rect x="-1" y="-12" width="2" height="24" fill="#c084fc" opacity="0.7" />
+   854→        <rect x="-5" y="10" width="10" height="1.5" fill="#c084fc" opacity="0.7" />
+   855→      </g>
+   856→      <g transform="translate(200, 168) rotate(-45)">
+   857→        <rect x="-1" y="-12" width="2" height="24" fill="#c084fc" opacity="0.7" />
+   858→        <rect x="-5" y="10" width="10" height="1.5" fill="#c084fc" opacity="0.7" />
+   859→      </g>
+   860→
+   861→      {/* Decorative dots middle tier */}
+   862→      {[[100, 145], [115, 145], [130, 145], [150, 145], [165, 145], [180, 145]].map(([x, y], i) => (
+   863→        <circle key={i} cx={x} cy={y} r="1.5" fill="#a855f7" opacity="0.5" />
+   864→      ))}
+   865→
+   866→      {/* ============ TOP TIER (Both — lightning + heart) ============ */}
+   867→      <rect x="85" y="75" width="110" height="58" fill="#0a0a0a" />
+   868→      <rect x="85" y="73" width="110" height="4" fill="#a855f7" />
+   869→      <rect x="85" y="77" width="110" height="1" fill="#c084fc" opacity="0.5" />
+   870→
+   871→      {/* Lightning bolt — left (Cyno's electro) */}
+   872→      <path
+   873→        d="M 110 92 L 102 105 L 110 105 L 102 118 L 116 100 L 108 100 Z"
+   874→        fill="#c084fc"
+   875→        opacity="0.85"
+   876→        style={{ filter: "drop-shadow(0 0 3px #c084fc)" }}
+   877→      />
+   878→
+   879→      {/* Heart — right (Law's Heart Pirates) */}
+   880→      <path
+   881→        d="M 165 110 Q 158 100 165 95 Q 172 100 165 110 Z"
+   882→        fill="#d8b4fe"
+   883→        opacity="0.85"
+   884→        style={{ filter: "drop-shadow(0 0 3px #d8b4fe)" }}
+   885→      />
+   886→
+   887→      {/* Law's hat pattern — spots on top tier (jellybean pattern) */}
+   888→      {[[95, 90], [125, 90], [155, 90], [185, 90], [110, 125], [140, 125], [170, 125]].map(([x, y], i) => (
+   889→        <circle key={i} cx={x} cy={y} r="2" fill="#a855f7" opacity="0.4" />
+   890→      ))}
+   891→
+   892→      {/* ============ CANDLE ============ */}
+   893→      <rect x="135" y="35" width="14" height="40" fill="#18181b" />
+   894→      {/* Candle stripes */}
+   895→      <rect x="135" y="42" width="14" height="1.5" fill="#a855f7" />
+   896→      <rect x="135" y="52" width="14" height="1.5" fill="#a855f7" />
+   897→      <rect x="135" y="62" width="14" height="1.5" fill="#a855f7" />
+   898→      <rect x="135" y="72" width="14" height="1.5" fill="#a855f7" />
+   899→      {/* Wick */}
+   900→      <rect x="141" y="28" width="2" height="8" fill="#525252" />
+   901→
+   902→      {/* Flame (purple, flickering) */}
+   903→      {!blown && (
+   904→        <motion.g
+   905→          animate={{
+   906→            scaleY: [1, 1.18, 0.92, 1.1, 1],
+   907→            scaleX: [1, 0.93, 1.07, 0.95, 1],
+   908→            opacity: [0.9, 1, 0.95, 1, 0.9],
+   909→          }}
+   910→          transition={{ duration: 0.5, repeat: Infinity }}
+   911→          style={{ transformOrigin: "142px 35px" }}
+   912→        >
+   913→          <path
+   914→            d="M 142 35 Q 132 22 142 5 Q 152 22 142 35 Z"
+   915→            fill="#a855f7"
+   916→            style={{ filter: "drop-shadow(0 0 8px #a855f7) drop-shadow(0 0 16px #7c3aed)" }}
+   917→          />
+   918→          <path
+   919→            d="M 142 30 Q 136 20 142 8 Q 148 20 142 30 Z"
+   920→            fill="#e9d5ff"
+   921→            style={{ filter: "drop-shadow(0 0 5px #c084fc)" }}
+   922→          />
+   923→          <ellipse cx="142" cy="25" rx="2" ry="4" fill="#ffffff" opacity="0.9" />
+   924→        </motion.g>
+   925→      )}
+   926→
+   927→      {/* Smoke when blown */}
+   928→      {blown && (
+   929→        <motion.g
+   930→          initial={{ opacity: 0.7, y: 0 }}
+   931→          animate={{ opacity: [0.7, 0.4, 0.1, 0], y: [0, -25, -45, -65] }}
+   932→          transition={{ duration: 2.5 }}
+   933→        >
+   934→          <circle cx="142" cy="25" r="3" fill="#71717a" />
+   935→          <circle cx="146" cy="15" r="2.5" fill="#71717a" />
+   936→          <circle cx="138" cy="5" r="2" fill="#71717a" />
+   937→          <circle cx="143" cy="-5" r="1.5" fill="#71717a" />
+   938→        </motion.g>
+   939→      )}
+   940→    </svg>
+   941→  )
+   942→}
+   943→

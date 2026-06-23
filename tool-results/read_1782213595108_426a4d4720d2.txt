@@ -1,0 +1,761 @@
+     1→'use client'
+     2→
+     3→import { useState, useRef } from "react"
+     4→import Link from "next/link"
+     5→import { motion, AnimatePresence } from "framer-motion"
+     6→import {
+     7→  Zap,
+     8→  Scale,
+     9→  Compass,
+    10→  Swords,
+    11→  Sparkle,
+    12→  ArrowRight,
+    13→  Eye,
+    14→  Gift as GiftIcon,
+    15→  Edit3,
+    16→  Check,
+    17→} from "lucide-react"
+    18→import { Particles } from "@/components/birthday/particles"
+    19→import { ConfettiBurst } from "@/components/birthday/confetti-burst"
+    20→import { Lightning } from "@/components/birthday/lightning"
+    21→import { RoomEffect } from "@/components/birthday/room-effect"
+    22→import { Navbar } from "@/components/birthday/navbar"
+    23→import { sfx, startBgm } from "@/components/birthday/sound"
+    24→
+    25→// ============================================================
+    26→//  HOME · Main Birthday Page
+    27→//
+    28→//  Sections:
+    29→//   1. Hero — "21" with lightning, name (default Yava), subtitle
+    30→//   2. Candle Ritual (Ritual 01) → Eye → Lightning → Room
+    31→//      After candle blown → gateway links to subpages revealed
+    32→//   3. Wishes — 6 messages for Yava (DKV student, art-relatable,
+    33→//      encouragement + casual/joke mix)
+    34→//   4. Closing — sign-off from Kirie
+    35→// ============================================================
+    36→
+    37→// 6 wishes — mix of formal + casual + DKV-art references.
+    38→// Sender = Kirie. Tone = rarely fully serious, sometimes semi-serious.
+    39→// Yava is a DKV student who's still insecure about their art talent.
+    40→const WISHES = [
+    41→  {
+    42→    num: "01",
+    43→    title: "Trust Your Stroke",
+    44→    message:
+    45→      "Yav, setiap stroke yang kamu buat — meskipun menurutmu masih 'jelek' — itu tanda tanganmu sendiri. Nggak ada yang punya line yang sama. Aku tahu kadang kamu ngerasa kayaknya belum cukup, atau bandinginnya sama orang lain sampai lupa liat kemajuan sendiri. Tapi coba deh buka sketchbook kamu setahun lalu, lalu buka yang sekarang. Beda banget kan? Itu nyata. Trust the process, trust your hand, trust your eye. Style kamu nggak akan datang dari nge-copy orang lain — itu muncul dari konsisten ngelukis yang kamu suka.",
+    46→    icon: Zap,
+    47→  },
+    48→  {
+    49→    num: "02",
+    50→    title: "Teguh Sama Pilihan",
+    51→    message:
+    52→      "Kayak Cyno yang berdiri tegak di padang pasir Sumeru, semoga kamu juga tetap tegas sama prinsip yang kamu pegang. Nggak goyah sama arus, nggak tergesa sama waktu, nggak tergiur jalan pintas. Pendirianmu itu pedangmu — rawat baik-baik. Dan kalau ada yang nyoba suruh kamu 'kompromi' sama hal yang melanggar prinsip, anggap aja mereka lagi request revisi ke-99 tanpa bayar. Tolak sopan, tetap di garis kamu.",
+    53→    icon: Scale,
+    54→  },
+    55→  {
+    56→    num: "03",
+    57→    title: "Open New Room",
+    58→    message:
+    59→      "Kayak Trafalgar Law yang buka ROOM dan define ulang medan pertempurannya, di umur 21 ini kamu punya kekuatan yang sama. Kamu bisa batasin ulang siapa yang masuk ke hidupmu, kamu bisa pindahin hal-hal yang nggak lagi melayani kamu, kamu bisa tentuin aturan mainmu sendiri. Anggap aja tahun ini kamu dapat fresh canvas baru — kosong, tapi penuh possibility. Tinggal kamu mau canvas-nya diisi apa. Jangan takut mulai dari nol; bagian terbaiknya justru di situ.",
+    60→    icon: Compass,
+    61→  },
+    62→  {
+    63→    num: "04",
+    64→    title: "Brave Without Limit",
+    65→    message:
+    66→      "Tahun ini medan pertempuranmu. Bawa pedang keyakinan, kenakan jati diri sebagai baju zirah, taklukkan setiap ombak yang menghadang. Law pernah bilang, orang yang nggak siap mati nggak bisa jadi pengendali kematian. Maka bersiap — bukan buat mati, tapi buat benar-benar hidup. Kadang hidup penuh itu berarti ikut kemana hati bawa, meskipun nyali. Kontras itu penting di desain, dan penting juga di hidup. Jangan takut sama dark mode — di situ warna kamu paling keliatan.",
+    67→    icon: Swords,
+    68→  },
+    69→  {
+    70→    num: "05",
+    71→    title: "Contrast & Whitespace",
+    72→    message:
+    73→      "Sebagai anak DKV, kamu pasti paham: kontras itu yang bikin elemen menonjol, whitespace itu yang kasih ruang buat napas. Tahun ini, semoga hidupmu punya keduanya. Cukup kerja, cukup main. Cukup serius, cukup joke. Kalau ketemu dosen toxic atau client jail, jangan ragu reject — itu juga bagian dari design decision, dan kamu mah udah expert. Negative space di jadwal kamu, jaga baik-baik; kadang yang nggak diisi justru yang paling strong.",
+    74→    icon: Sparkle,
+    75→  },
+    76→  {
+    77→    num: "06",
+    78→    title: "Always Same Room",
+    79→    message:
+    80→      "Sebagai orang yang kenal kamu, kita nggak harus selalu satu kapal — kadang kamu di Room-mu, aku di Room-ku. Tapi kalau kamu butuh anchor, atau butuh orang yang bisa diajak ribut soal kerning, komposisi, atau hal-hal kecil yang ternyata penting banget, kamu tahu di mana nemuin aku. Selamat ulang tahun, Yav. Trim sebelumnya udah jadi orang yang bisa diajak ngobrolin hal random sampai jam berapa pun. Spill kapan aja, aku siap dengerin (atau minimal react +1 dulu). Eh, ngomong-ngomong, jangan insecure lagi ya sama artwork kamu. Aku yang nggak ngerti desain aja bisa liat kamu punya taste.",
+    81→    icon: Eye,
+    82→  },
+    83→]
+    84→
+    85→export default function HomePage() {
+    86→  const [name, setName] = useState("Yava")
+    87→  const [editingName, setEditingName] = useState(false)
+    88→  const [tempName, setTempName] = useState("")
+    89→  const [candleBlown, setCandleBlown] = useState(false)
+    90→  const [confettiTrigger, setConfettiTrigger] = useState(0)
+    91→  const [lightningTrigger, setLightningTrigger] = useState(0)
+    92→  const [roomActive, setRoomActive] = useState(false)
+    93→  const [eyeFlash, setEyeFlash] = useState(false)
+    94→  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+    95→
+    96→  // ============================================================
+    97→  //  Ritual 01 — Candle → Eye → Lightning → Room → Confetti
+    98→  //  Reframed causal chain:
+    99→  //   1. Blow candle → smoke carries wish up
+   100→  //   2. Eye of Anubis flashes (Cyno sees the wish, judges intent)
+   101→  //   3. Judgement lightning (verdict delivered — Cyno's element)
+   102→  //   4. Room dome materializes in the lightning's residual energy
+   103→  //      (Law's spatial rift — gateway to deliver the message)
+   104→  //   5. Confetti + hidden message (wish has arrived on the other side)
+   105→  // ============================================================
+   106→  const handleBlowCandle = () => {
+   107→    sfx.candleBlow()
+   108→
+   109→    if (!candleBlown) {
+   110→      setCandleBlown(true)
+   111→      runRitualSequence()
+   112→    } else {
+   113→      // Reset and re-trigger
+   114→      setRoomActive(false)
+   115→      setCandleBlown(false)
+   116→      setEyeFlash(false)
+   117→      const t = setTimeout(() => {
+   118→        sfx.candleBlow()
+   119→        setCandleBlown(true)
+   120→        runRitualSequence()
+   121→      }, 400)
+   122→      timersRef.current.push(t)
+   123→    }
+   124→  }
+   125→
+   126→  const runRitualSequence = () => {
+   127→    // Step 2 — Eye of Anubis flash
+   128→    const t1 = setTimeout(() => {
+   129→      setEyeFlash(true)
+   130→      sfx.eyeFlash()
+   131→    }, 300)
+   132→    timersRef.current.push(t1)
+   133→
+   134→    // Step 3 — Judgement lightning
+   135→    const t2 = setTimeout(() => {
+   136→      setEyeFlash(false)
+   137→      setLightningTrigger((t) => t + 1)
+   138→      sfx.judgement()
+   139→    }, 700)
+   140→    timersRef.current.push(t2)
+   141→
+   142→    // Step 4 — Room opens
+   143→    const t3 = setTimeout(() => {
+   144→      setRoomActive(true)
+   145→      sfx.roomOpen()
+   146→    }, 1000)
+   147→    timersRef.current.push(t3)
+   148→
+   149→    // Step 5 — Confetti
+   150→    const t4 = setTimeout(() => {
+   151→      setConfettiTrigger((t) => t + 1)
+   152→    }, 1400)
+   153→    timersRef.current.push(t4)
+   154→  }
+   155→
+   156→  const startEdit = () => {
+   157→    setTempName(name)
+   158→    setEditingName(true)
+   159→    sfx.click()
+   160→  }
+   161→
+   162→  const saveName = () => {
+   163→    if (tempName.trim()) {
+   164→      setName(tempName.trim())
+   165→    }
+   166→    setEditingName(false)
+   167→    sfx.click()
+   168→  }
+   169→
+   170→  return (
+   171→    <div className="min-h-screen flex flex-col bg-black text-white relative overflow-hidden">
+   172→      {/* Ambient background — keep subtle, no harsh boxes */}
+   173→      <div className="fixed inset-0 pointer-events-none z-0">
+   174→        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-purple-700/15 rounded-full blur-[150px]" />
+   175→        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-violet-900/20 rounded-full blur-[120px]" />
+   176→      </div>
+   177→
+   178→      <Navbar />
+   179→      <Particles />
+   180→      <ConfettiBurst trigger={confettiTrigger} />
+   181→      <Lightning trigger={lightningTrigger} />
+   182→
+   183→      <main className="flex-1 relative z-10">
+   184→        {/* ============ HERO ============ */}
+   185→        <section className="min-h-[90vh] flex flex-col items-center justify-center px-4 py-20 text-center relative">
+   186→          {/* Date label — 22.06 · 21 */}
+   187→          <motion.div
+   188→            initial={{ opacity: 0, y: -10 }}
+   189→            animate={{ opacity: 1, y: 0 }}
+   190→            transition={{ duration: 0.6 }}
+   191→            className="mb-10"
+   192→          >
+   193→            <div className="inline-flex items-center gap-3 text-purple-400">
+   194→              <span className="w-8 h-px bg-purple-500/50" />
+   195→              <span className="text-xs tracking-[0.5em] font-mono">22.06 · GENAP 21</span>
+   196→              <span className="w-8 h-px bg-purple-500/50" />
+   197→            </div>
+   198→          </motion.div>
+   199→
+   200→          {/* Main greeting */}
+   201→          <motion.h1
+   202→            initial={{ opacity: 0, y: 20 }}
+   203→            animate={{ opacity: 1, y: 0 }}
+   204→            transition={{ duration: 0.8, delay: 0.2 }}
+   205→            className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tight leading-[1.1] mb-3"
+   206→          >
+   207→            Happy
+   208→            <br />
+   209→            <span className="bg-gradient-to-r from-purple-300 via-purple-400 to-violet-500 bg-clip-text text-transparent">
+   210→              Birthday
+   211→            </span>
+   212→          </motion.h1>
+   213→
+   214→          {/* Name (editable) — default Yava */}
+   215→          <motion.div
+   216→            initial={{ opacity: 0, scale: 0.9 }}
+   217→            animate={{ opacity: 1, scale: 1 }}
+   218→            transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
+   219→            className="mb-8"
+   220→          >
+   221→            {editingName ? (
+   222→              <div className="inline-flex items-center gap-2 flex-wrap justify-center">
+   223→                <input
+   224→                  type="text"
+   225→                  value={tempName}
+   226→                  onChange={(e) => setTempName(e.target.value)}
+   227→                  onKeyDown={(e) => e.key === "Enter" && saveName()}
+   228→                  autoFocus
+   229→                  placeholder="Enter name"
+   230→                  className="px-3 py-1 text-2xl sm:text-3xl font-bold text-center bg-transparent border-b-2 border-purple-500 outline-none text-white min-w-[180px]"
+   231→                />
+   232→                <button
+   233→                  onClick={saveName}
+   234→                  className="p-1.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+   235→                  aria-label="Save name"
+   236→                >
+   237→                  <Check className="w-4 h-4" />
+   238→                </button>
+   239→              </div>
+   240→            ) : (
+   241→              <button
+   242→                onClick={startEdit}
+   243→                onMouseEnter={() => sfx.hover()}
+   244→                className="group inline-flex items-center gap-2 hover:text-purple-300 transition-colors"
+   245→              >
+   246→                <span className="text-2xl sm:text-3xl font-bold tracking-wide">{name}</span>
+   247→                <Edit3 className="w-3.5 h-3.5 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+   248→              </button>
+   249→            )}
+   250→          </motion.div>
+   251→
+   252→          {/* Big 21 — lightning bolts around it UNTOUCHED (revision #1) */}
+   253→          <motion.div
+   254→            initial={{ opacity: 0, scale: 0.5 }}
+   255→            animate={{ opacity: 1, scale: 1 }}
+   256→            transition={{ delay: 0.7, type: "spring", stiffness: 100 }}
+   257→            className="relative mb-8"
+   258→          >
+   259→            <div className="relative">
+   260→              <div className="absolute inset-0 bg-purple-600/40 blur-3xl scale-150" />
+   261→              <motion.div
+   262→                animate={{
+   263→                  textShadow: [
+   264→                    "0 0 20px rgba(168,85,247,0.5)",
+   265→                    "0 0 40px rgba(168,85,247,0.8)",
+   266→                    "0 0 20px rgba(168,85,247,0.5)",
+   267→                  ],
+   268→                }}
+   269→                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+   270→                className="relative text-[10rem] sm:text-[14rem] md:text-[18rem] font-black leading-none tracking-tighter bg-gradient-to-b from-white via-purple-200 to-purple-600 bg-clip-text text-transparent"
+   271→              >
+   272→                21
+   273→              </motion.div>
+   274→
+   275→              {/* Lightning bolts AROUND the number — keep as-is per user request */}
+   276→              <motion.div
+   277→                className="absolute -left-6 top-1/4 text-purple-400"
+   278→                animate={{ opacity: [0.2, 1, 0.2], scale: [0.9, 1.1, 0.9] }}
+   279→                transition={{ duration: 2, repeat: Infinity }}
+   280→              >
+   281→                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-purple-400" />
+   282→              </motion.div>
+   283→              <motion.div
+   284→                className="absolute -right-6 bottom-1/4 text-purple-400"
+   285→                animate={{ opacity: [0.2, 1, 0.2], scale: [0.9, 1.1, 0.9] }}
+   286→                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+   287→              >
+   288→                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-purple-400" />
+   289→              </motion.div>
+   290→              <motion.div
+   291→                className="absolute -left-2 bottom-0 text-violet-500"
+   292→                animate={{ opacity: [0.1, 0.8, 0.1] }}
+   293→                transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+   294→              >
+   295→                <Zap className="w-3 h-3 fill-violet-500" />
+   296→              </motion.div>
+   297→              <motion.div
+   298→                className="absolute -right-2 top-0 text-violet-500"
+   299→                animate={{ opacity: [0.1, 0.8, 0.1] }}
+   300→                transition={{ duration: 1.5, repeat: Infinity, delay: 0.8 }}
+   301→              >
+   302→                <Zap className="w-3 h-3 fill-violet-500" />
+   303→              </motion.div>
+   304→            </div>
+   305→          </motion.div>
+   306→
+   307→          {/* Subtitle */}
+   308→          <motion.p
+   309→            initial={{ opacity: 0 }}
+   310→            animate={{ opacity: 1 }}
+   311→            transition={{ delay: 1 }}
+   312→            className="text-base sm:text-lg text-white/60 max-w-md leading-relaxed"
+   313→          >
+   314→            New year. New adventure. New power.
+   315→            <br />
+   316→            Welcome to the bigger field.
+   317→          </motion.p>
+   318→
+   319→          {/* Scroll indicator */}
+   320→          <motion.div
+   321→            initial={{ opacity: 0 }}
+   322→            animate={{ opacity: 1 }}
+   323→            transition={{ delay: 1.4 }}
+   324→            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+   325→          >
+   326→            <motion.div
+   327→              animate={{ y: [0, 8, 0] }}
+   328→              transition={{ duration: 2, repeat: Infinity }}
+   329→              className="w-px h-12 bg-gradient-to-b from-purple-500 to-transparent"
+   330→            />
+   331→          </motion.div>
+   332→        </section>
+   333→
+   334→        {/* ============ CANDLE RITUAL (Ritual 01) ============ */}
+   335→        <section className="py-24 px-4 relative">
+   336→          <div className="max-w-2xl mx-auto text-center">
+   337→            <motion.div
+   338→              initial={{ opacity: 0 }}
+   339→              whileInView={{ opacity: 1 }}
+   340→              viewport={{ once: true }}
+   341→              className="mb-4"
+   342→            >
+   343→              <span className="text-xs tracking-[0.4em] font-mono text-purple-500">
+   344→                RITUAL · 01 ·{" "}
+   345→                <ruby>
+   346→                  儀式<rt>ぎしき</rt>
+   347→                </ruby>
+   348→              </span>
+   349→            </motion.div>
+   350→
+   351→            <motion.h2
+   352→              initial={{ opacity: 0, y: 20 }}
+   353→              whileInView={{ opacity: 1, y: 0 }}
+   354→              viewport={{ once: true }}
+   355→              className="text-3xl sm:text-5xl font-black uppercase mb-4"
+   356→            >
+   357→              {candleBlown ? (
+   358→                <span className="bg-gradient-to-r from-purple-300 to-violet-500 bg-clip-text text-transparent">
+   359→                  Room Aktif
+   360→                </span>
+   361→              ) : (
+   362→                <>Kirim Permohonan</>
+   363→              )}
+   364→            </motion.h2>
+   365→
+   366→            <motion.p
+   367→              initial={{ opacity: 0 }}
+   368→              whileInView={{ opacity: 1 }}
+   369→              viewport={{ once: true }}
+   370→              className="text-white/60 mb-12 max-w-md mx-auto"
+   371→            >
+   372→              {candleBlown
+   373→                ? "Mata Anubis melihat. Petir pengadilan menyambar. Room terbuka. Pesanmu kini berada di sisi lain."
+   374→                : "Tiup lilin. Asap permohonanmu naik. Mata Anubis menilai niatmu. Petir pengadilan menyambar. Room terbuka — pesanmu sampai ke dimensi paralel."}
+   375→            </motion.p>
+   376→
+   377→            {/* Cake + ROOM container — single visual, no extra boxes */}
+   378→            <div className="relative w-full max-w-[420px] aspect-square mx-auto mb-10 flex items-center justify-center">
+   379→              <RoomEffect active={roomActive} />
+   380→
+   381→              <AnimatePresence>
+   382→                {eyeFlash && (
+   383→                  <motion.div
+   384→                    initial={{ scale: 0, opacity: 0, rotate: -90 }}
+   385→                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+   386→                    exit={{ scale: 1.4, opacity: 0, rotate: 90 }}
+   387→                    transition={{ type: "spring", stiffness: 300, damping: 18 }}
+   388→                    className="absolute top-[18%] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+   389→                  >
+   390→                    <Eye
+   391→                      className="w-12 h-12 text-amber-300"
+   392→                      style={{
+   393→                        filter:
+   394→                          "drop-shadow(0 0 12px rgba(251,191,36,0.9)) drop-shadow(0 0 24px rgba(251,191,36,0.6))",
+   395→                      }}
+   396→                    />
+   397→                  </motion.div>
+   398→                )}
+   399→              </AnimatePresence>
+   400→
+   401→              <motion.div
+   402→                className="relative z-10"
+   403→                animate={candleBlown ? { y: [0, -3, 0] } : {}}
+   404→                transition={{ duration: 0.4 }}
+   405→              >
+   406→                <CakeSVG blown={candleBlown} />
+   407→              </motion.div>
+   408→
+   409→              <AnimatePresence>
+   410→                {roomActive && (
+   411→                  <motion.div
+   412→                    initial={{ opacity: 0, scale: 0.3, letterSpacing: "0.5em" }}
+   413→                    animate={{
+   414→                      opacity: [0, 1, 1, 0.7, 0],
+   415→                      scale: [0.3, 1.1, 1, 1.05, 1.2],
+   416→                      letterSpacing: ["0.5em", "0.3em", "0.3em", "0.4em", "0.6em"],
+   417→                    }}
+   418→                    exit={{ opacity: 0 }}
+   419→                    transition={{ duration: 2, times: [0, 0.2, 0.5, 0.8, 1] }}
+   420→                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+   421→                  >
+   422→                    <span className="text-5xl sm:text-7xl font-black tracking-[0.3em] text-purple-300 bg-gradient-to-b from-white to-purple-400 bg-clip-text text-transparent">
+   423→                      ROOM
+   424→                    </span>
+   425→                  </motion.div>
+   426→                )}
+   427→              </AnimatePresence>
+   428→            </div>
+   429→
+   430→            {/* Action button — also the gateway: clicking reveals subpage links */}
+   431→            <motion.button
+   432→              whileHover={{ scale: 1.03 }}
+   433→              whileTap={{ scale: 0.97 }}
+   434→              onClick={handleBlowCandle}
+   435→              onMouseEnter={() => sfx.hover()}
+   436→              className="group relative inline-flex items-center gap-3 px-8 py-4 overflow-hidden border border-purple-500/50 hover:border-purple-400 transition-colors"
+   437→            >
+   438→              <span className="absolute inset-0 bg-purple-600/0 group-hover:bg-purple-600/20 transition-colors" />
+   439→              <span className="absolute left-0 top-0 h-full w-px bg-purple-500/0 group-hover:bg-purple-500/100 transition-all duration-500 group-hover:w-full" />
+   440→              <Zap className="relative w-4 h-4 text-purple-400 group-hover:text-white transition-colors" />
+   441→              <span className="relative text-sm font-bold uppercase tracking-[0.2em] text-white group-hover:text-white transition-colors">
+   442→                {candleBlown ? "Ulangi Ritual" : "Tiup Lilin"}
+   443→              </span>
+   444→            </motion.button>
+   445→
+   446→            {/* Hidden message + gateway links — only after candle blown */}
+   447→            <AnimatePresence>
+   448→              {candleBlown && (
+   449→                <motion.div
+   450→                  initial={{ opacity: 0, y: 30, height: 0 }}
+   451→                  animate={{ opacity: 1, y: 0, height: "auto" }}
+   452→                  exit={{ opacity: 0, y: -20, height: 0 }}
+   453→                  transition={{ delay: 1.4, duration: 0.8 }}
+   454→                  className="mt-16 overflow-hidden"
+   455→                >
+   456→                  {/* Divider with sigil — replaces "box" framing */}
+   457→                  <div className="flex items-center gap-4 mb-10">
+   458→                    <span className="flex-1 h-px bg-gradient-to-r from-transparent to-purple-500/50" />
+   459→                    <Sparkle className="w-4 h-4 text-purple-400" />
+   460→                    <span className="flex-1 h-px bg-gradient-to-l from-transparent to-purple-500/50" />
+   461→                  </div>
+   462→
+   463→                  <p className="text-xs tracking-[0.4em] font-mono text-purple-500 mb-4">
+   464→                    PESAN MASUK
+   465→                  </p>
+   466→
+   467→                  <blockquote className="text-xl sm:text-2xl font-medium leading-relaxed text-white/90 mb-4 italic">
+   468→                    &ldquo;Setiap orang punya Room-nya sendiri. Di dalamnya, kamu adalah
+   469→                    pengendali. Tahun ini, buka Room-mu — dan ambil kendali penuh atas
+   470→                    medan yang kamu pijak.&rdquo;
+   471→                  </blockquote>
+   472→
+   473→                  <p className="text-sm text-purple-400 tracking-wide mb-10">
+   474→                    — Kirie, dari sisi lain ROOM
+   475→                  </p>
+   476→
+   477→                  {/* Gateway links — text + arrow, no boxes */}
+   478→                  <div className="space-y-4 max-w-md mx-auto mb-6 text-left">
+   479→                    <Link
+   480→                      href="/ritual"
+   481→                      onClick={() => sfx.click()}
+   482→                      onMouseEnter={() => sfx.hover()}
+   483→                      className="group flex items-center justify-between gap-4 py-3 border-b border-purple-500/20 hover:border-amber-400/60 transition-colors"
+   484→                    >
+   485→                      <span className="flex-1">
+   486→                        <span className="block text-[10px] font-mono tracking-[0.3em] text-amber-400/80 mb-1">
+   487→                          RITUAL · 02-04
+   488→                        </span>
+   489→                        <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white group-hover:text-amber-200 transition-colors">
+   490→                          Pengadilan Cyno
+   491→                        </span>
+   492→                      </span>
+   493→                      <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-2 transition-transform" />
+   494→                    </Link>
+   495→                    <Link
+   496→                      href="/room"
+   497→                      onClick={() => sfx.click()}
+   498→                      onMouseEnter={() => sfx.hover()}
+   499→                      className="group flex items-center justify-between gap-4 py-3 border-b border-purple-500/20 hover:border-purple-400 transition-colors"
+   500→                    >
+   501→                      <span className="flex-1">
+   502→                        <span className="block text-[10px] font-mono tracking-[0.3em] text-purple-400/80 mb-1">
+   503→                          CHAMBER · 01-05
+   504→                        </span>
+   505→                        <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white group-hover:text-purple-200 transition-colors">
+   506→                          Room Law
+   507→                        </span>
+   508→                      </span>
+   509→                      <ArrowRight className="w-4 h-4 text-purple-400 group-hover:translate-x-2 transition-transform" />
+   510→                    </Link>
+   511→                    <Link
+   512→                      href="/gift"
+   513→                      onClick={() => sfx.click()}
+   514→                      onMouseEnter={() => sfx.hover()}
+   515→                      className="group flex items-center justify-between gap-4 py-3 border-b border-purple-500/20 hover:border-pink-400/60 transition-colors"
+   516→                    >
+   517→                      <span className="flex-1">
+   518→                        <span className="block text-[10px] font-mono tracking-[0.3em] text-pink-400/80 mb-1">
+   519→                          HADIAH · KLAIM
+   520→                        </span>
+   521→                        <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white group-hover:text-pink-200 transition-colors">
+   522→                          Bounty Voucher
+   523→                        </span>
+   524→                      </span>
+   525→                      <GiftIcon className="w-4 h-4 text-pink-400 group-hover:scale-110 transition-transform" />
+   526→                    </Link>
+   527→                  </div>
+   528→
+   529→                  {/* Stat row — single line, no boxes */}
+   530→                  <div className="mt-10 flex items-center justify-center gap-8 sm:gap-12 text-center">
+   531→                    <div>
+   532→                      <p className="text-3xl font-black text-purple-400 font-mono">21</p>
+   533→                      <p className="text-xs text-white/40 tracking-widest uppercase mt-1">Usia</p>
+   534→                    </div>
+   535→                    <span className="w-px h-10 bg-purple-500/30" />
+   536→                    <div>
+   537→                      <p className="text-3xl font-black text-purple-400 font-mono">∞</p>
+   538→                      <p className="text-xs text-white/40 tracking-widest uppercase mt-1">Possibility</p>
+   539→                    </div>
+   540→                    <span className="w-px h-10 bg-purple-500/30" />
+   541→                    <div>
+   542→                      <p className="text-3xl font-black text-purple-400 font-mono">01</p>
+   543→                      <p className="text-xs text-white/40 tracking-widest uppercase mt-1">Room Aktif</p>
+   544→                    </div>
+   545→                  </div>
+   546→                </motion.div>
+   547→              )}
+   548→            </AnimatePresence>
+   549→          </div>
+   550→        </section>
+   551→
+   552→        {/* ============ WISHES ============ */}
+   553→        <section id="wishes" className="py-24 px-4 relative scroll-mt-20">
+   554→          <div className="max-w-3xl mx-auto">
+   555→            <motion.div
+   556→              initial={{ opacity: 0 }}
+   557→              whileInView={{ opacity: 1 }}
+   558→              viewport={{ once: true }}
+   559→              className="mb-20 text-center"
+   560→            >
+   561→              <span className="text-xs tracking-[0.4em] font-mono text-purple-500">
+   562→                DOA · 01 — 06
+   563→              </span>
+   564→              <h2 className="mt-4 text-3xl sm:text-5xl font-black uppercase">
+   565→                Enam <span className="text-purple-400">Pesan</span>
+   566→                <br />
+   567→                Untuk Tahun Baru
+   568→              </h2>
+   569→              <p className="mt-4 text-sm text-white/40 italic">
+   570→                dari Kirie · untuk {name}
+   571→              </p>
+   572→            </motion.div>
+   573→
+   574→            <div className="space-y-0">
+   575→              {WISHES.map((wish, i) => {
+   576→                const Icon = wish.icon
+   577→                return (
+   578→                  <motion.div
+   579→                    key={wish.num}
+   580→                    initial={{ opacity: 0, y: 30 }}
+   581→                    whileInView={{ opacity: 1, y: 0 }}
+   582→                    viewport={{ once: true, margin: "-80px" }}
+   583→                    transition={{ duration: 0.6 }}
+   584→                    className="group relative"
+   585→                  >
+   586→                    <div className="grid grid-cols-[auto_1fr] gap-6 sm:gap-10 py-10">
+   587→                      <div className="text-5xl sm:text-7xl font-black font-mono text-purple-500/30 group-hover:text-purple-400/60 transition-colors leading-none">
+   588→                        {wish.num}
+   589→                      </div>
+   590→                      <div className="pt-1">
+   591→                        <div className="flex items-center gap-3 mb-4">
+   592→                          <Icon className="w-4 h-4 text-purple-400" />
+   593→                          <span className="w-6 h-px bg-purple-500/40" />
+   594→                          <h3 className="text-lg sm:text-2xl font-bold uppercase tracking-wide">
+   595→                            {wish.title}
+   596→                          </h3>
+   597→                        </div>
+   598→                        <p className="text-sm sm:text-base text-white/60 leading-relaxed max-w-2xl">
+   599→                          {wish.message}
+   600→                        </p>
+   601→                      </div>
+   602→                    </div>
+   603→                    {i < WISHES.length - 1 && (
+   604→                      <div className="h-px bg-gradient-to-r from-purple-500/30 via-purple-500/10 to-transparent" />
+   605→                    )}
+   606→                  </motion.div>
+   607→                )
+   608→              })}
+   609→            </div>
+   610→          </div>
+   611→        </section>
+   612→
+   613→        {/* ============ CLOSING ============ */}
+   614→        <section id="closing" className="py-32 px-4 text-center relative scroll-mt-20">
+   615→          <motion.div
+   616→            initial={{ opacity: 0, y: 30 }}
+   617→            whileInView={{ opacity: 1, y: 0 }}
+   618→            viewport={{ once: true }}
+   619→            className="max-w-2xl mx-auto relative"
+   620→          >
+   621→            <div className="absolute inset-0 bg-purple-600/10 blur-3xl scale-110" />
+   622→            <div className="relative">
+   623→              <Zap className="w-6 h-6 text-purple-400 mx-auto mb-6 fill-purple-400/30" />
+   624→              <p className="text-xl sm:text-2xl leading-relaxed text-white/90 font-light mb-6">
+   625→                Di tahun ke-21 ini, semoga kamu menemukan kekuatan seperti
+   626→                <span className="text-purple-300 font-medium"> Cyno </span>
+   627→                yang menegakkan keadilan dengan ketegasan, dan keberanian seperti
+   628→                <span className="text-purple-300 font-medium"> Law </span>
+   629→                yang menaklukkan lautan dengan strategi.
+   630→              </p>
+   631→              <p className="text-base text-white/60 mb-10">
+   632→                Kamu akan menaklukkan tahun ini. Aku yakin. Atau minimal — kamu akan desain tahun ini jadi keren. Same thing, basically. Eh, jangan insecure lagi ya sama bakat seni kamu. Aku yang nggak ngerti desain aja bisa liat kamu punya taste.
+   633→              </p>
+   634→              <div className="flex items-center justify-center gap-3 mb-2">
+   635→                <span className="w-6 h-px bg-purple-500/50" />
+   636→                <span className="text-xs tracking-[0.4em] font-mono text-purple-400">
+   637→                  DARI KIRIE
+   638→                </span>
+   639→                <span className="w-6 h-px bg-purple-500/50" />
+   640→              </div>
+   641→              <p className="text-sm text-purple-400/70">
+   642→                untuk {name}
+   643→              </p>
+   644→            </div>
+   645→          </motion.div>
+   646→        </section>
+   647→      </main>
+   648→
+   649→      <footer className="relative z-10 border-t border-purple-500/10 mt-auto">
+   650→        <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+   651→          <p className="text-xs text-white/30 font-mono tracking-widest">
+   652→            22 · 06 · BIRTHDAY
+   653→          </p>
+   654→          <p className="text-xs text-white/30 font-mono tracking-widest">
+   655→            ROOM · ACTIVE
+   656→          </p>
+   657→        </div>
+   658→      </footer>
+   659→    </div>
+   660→  )
+   661→}
+   662→
+   663→// ============ CAKE SVG ============
+   664→function CakeSVG({ blown }: { blown: boolean }) {
+   665→  return (
+   666→    <svg
+   667→      width="200"
+   668→      height="240"
+   669→      viewBox="0 0 200 240"
+   670→      className="drop-shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+   671→    >
+   672→      {/* Plate */}
+   673→      <ellipse cx="100" cy="225" rx="85" ry="6" fill="#27272a" />
+   674→      <ellipse cx="100" cy="222" rx="85" ry="4" fill="#3f3f46" />
+   675→
+   676→      {/* Bottom tier */}
+   677→      <rect x="25" y="155" width="150" height="65" fill="#0a0a0a" />
+   678→      <rect x="25" y="153" width="150" height="4" fill="#a855f7" />
+   679→      <rect x="25" y="218" width="150" height="2" fill="#7c3aed" opacity="0.5" />
+   680→
+   681→      {/* Decorative purple accents */}
+   682→      <rect x="35" y="180" width="6" height="20" fill="#a855f7" opacity="0.4" />
+   683→      <rect x="55" y="175" width="3" height="30" fill="#c084fc" opacity="0.5" />
+   684→      <rect x="75" y="180" width="6" height="20" fill="#a855f7" opacity="0.4" />
+   685→      <rect x="95" y="175" width="3" height="30" fill="#c084fc" opacity="0.5" />
+   686→      <rect x="115" y="180" width="6" height="20" fill="#a855f7" opacity="0.4" />
+   687→      <rect x="135" y="175" width="3" height="30" fill="#c084fc" opacity="0.5" />
+   688→      <rect x="155" y="180" width="6" height="20" fill="#a855f7" opacity="0.4" />
+   689→
+   690→      {/* Middle tier */}
+   691→      <rect x="50" y="105" width="100" height="48" fill="#18181b" />
+   692→      <rect x="50" y="103" width="100" height="3" fill="#a855f7" />
+   693→
+   694→      {/* Heart pirates smiley */}
+   695→      <g transform="translate(100, 130)">
+   696→        <circle cx="0" cy="0" r="10" fill="none" stroke="#d8b4fe" strokeWidth="1.2" />
+   697→        <path d="M -5 2 Q 0 5 5 2" fill="none" stroke="#d8b4fe" strokeWidth="1.2" strokeLinecap="round" />
+   698→        <circle cx="-3" cy="-2" r="0.8" fill="#d8b4fe" />
+   699→        <circle cx="3" cy="-2" r="0.8" fill="#d8b4fe" />
+   700→      </g>
+   701→
+   702→      {/* Top tier */}
+   703→      <rect x="70" y="60" width="60" height="42" fill="#0a0a0a" />
+   704→      <rect x="70" y="58" width="60" height="3" fill="#a855f7" />
+   705→
+   706→      {/* Lightning bolt decoration on top tier */}
+   707→      <path
+   708→        d="M 100 75 L 95 85 L 100 85 L 95 95 L 105 82 L 100 82 Z"
+   709→        fill="#c084fc"
+   710→        opacity="0.7"
+   711→      />
+   712→
+   713→      {/* Candle */}
+   714→      <rect x="95" y="30" width="10" height="28" fill="#18181b" />
+   715→      <rect x="95" y="36" width="10" height="1.5" fill="#a855f7" />
+   716→      <rect x="95" y="44" width="10" height="1.5" fill="#a855f7" />
+   717→      <rect x="95" y="52" width="10" height="1.5" fill="#a855f7" />
+   718→      <rect x="99" y="25" width="2" height="6" fill="#525252" />
+   719→
+   720→      {/* Flame */}
+   721→      {!blown && (
+   722→        <motion.g
+   723→          animate={{
+   724→            scaleY: [1, 1.18, 0.92, 1.1, 1],
+   725→            scaleX: [1, 0.93, 1.07, 0.95, 1],
+   726→            opacity: [0.9, 1, 0.95, 1, 0.9],
+   727→          }}
+   728→          transition={{ duration: 0.5, repeat: Infinity }}
+   729→          style={{ transformOrigin: "100px 30px" }}
+   730→        >
+   731→          <path
+   732→            d="M 100 25 Q 92 15 100 0 Q 108 15 100 25 Z"
+   733→            fill="#a855f7"
+   734→            style={{ filter: "drop-shadow(0 0 6px #a855f7) drop-shadow(0 0 12px #7c3aed)" }}
+   735→          />
+   736→          <path
+   737→            d="M 100 22 Q 96 14 100 5 Q 104 14 100 22 Z"
+   738→            fill="#e9d5ff"
+   739→            style={{ filter: "drop-shadow(0 0 4px #c084fc)" }}
+   740→          />
+   741→          <ellipse cx="100" cy="20" rx="1.5" ry="3" fill="#ffffff" opacity="0.9" />
+   742→        </motion.g>
+   743→      )}
+   744→
+   745→      {/* Smoke when blown */}
+   746→      {blown && (
+   747→        <motion.g
+   748→          initial={{ opacity: 0.7, y: 0 }}
+   749→          animate={{ opacity: [0.7, 0.4, 0.1, 0], y: [0, -25, -45, -65] }}
+   750→          transition={{ duration: 2.5 }}
+   751→        >
+   752→          <circle cx="100" cy="20" r="2.5" fill="#71717a" />
+   753→          <circle cx="103" cy="10" r="2" fill="#71717a" />
+   754→          <circle cx="97" cy="2" r="1.5" fill="#71717a" />
+   755→          <circle cx="101" cy="-8" r="1" fill="#71717a" />
+   756→        </motion.g>
+   757→      )}
+   758→    </svg>
+   759→  )
+   760→}
+   761→

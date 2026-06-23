@@ -1,0 +1,1496 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useRef, useEffect, useCallback } from "react"
+     4→     4→import Link from "next/link"
+     5→     5→import { motion, AnimatePresence } from "framer-motion"
+     6→     6→import {
+     7→     7→  ArrowLeft,
+     8→     8→  Gift as GiftIcon,
+     9→     9→  RotateCcw,
+    10→    10→  ChevronRight,
+    11→    11→  CheckCircle2,
+    12→    12→  Eye,
+    13→    13→  ScanLine,
+    14→    14→  Zap,
+    15→    15→  Swords,
+    16→    16→  Diamond,
+    17→    17→  Sparkles,
+    18→    18→  Lock,
+    19→    19→  Unlock,
+    20→    20→  Heart,
+    21→    21→} from "lucide-react"
+    22→    22→import { Navbar } from "@/components/birthday/navbar"
+    23→    23→import { Particles } from "@/components/birthday/particles"
+    24→    24→import { ConfettiBurst } from "@/components/birthday/confetti-burst"
+    25→    25→import { Lightning } from "@/components/birthday/lightning"
+    26→    26→import { sfx } from "@/components/birthday/sound"
+    27→    27→
+    28→    28→// ============================================================
+    29→    29→//  GIFT CLAIM — Multi-stage interactive ritual
+    30→    30→//
+    31→    31→//  Layout (per user spec):
+    32→    32→//   1. IDENTITY BOX (no photo) — Yava bounty-style card
+    33→    33→//      "YAVA · ONLY ALIVE · BOUNTY: ∞ (atau 1× hadiah spesial dari Kirie)"
+    34→    34→//   2. THREE GAMES (in order):
+    35→    35→//      a) Scan       — hold to scan, reveal the seal
+    36→    36→//      b) Counter Shock — click to charge to 100%, lightning strikes
+    37→    37→//      c) Amputate   — slash through seals (Fruit Ninja style)
+    38→    38→//   3. After all 3 games complete → gift claimed screen
+    39→    39→//      (matches dropped screenshots design)
+    40→    40→//      - "VOUCHER · CLAIMED" / "HADIAH DIKLAIM" / "贈り物"
+    41→    41→//      - Three-column: PENERIMA | PEMBERI | TANGGAL
+    42→    42→//      - "BERLAKU SELAMANYA" (1× use, no expiry)
+    43→    43→//      - Hidden message reveal
+    44→    44→//   4. After claim → secondary voucher for when physical gift is taken
+    45→    45→//      - Must answer Kirie's secret code to unlock tear mode
+    46→    46→//      - Then slash to tear (only Kirie knows the answer → only Kirie tears)
+    47→    47→// ============================================================
+    48→    48→
+    49→    49→type Phase = "intro" | "games" | "claimed" | "voucher"
+    50→    50→
+    51→    51→const SECRET_QUESTION = "Who are Kirie's first and second sons in Keyfam?"
+    52→    52→const SECRET_ANSWER = "Keith Kirei and Keiz Kanne" // exact match (case-sensitive)
+    53→    53→
+    54→    54→export default function GiftPage() {
+    55→    55→  const [phase, setPhase] = useState<Phase>("intro")
+    56→    56→  const [gameIdx, setGameIdx] = useState(0) // 0=scan, 1=counter, 2=amputate
+    57→    57→  const [gamesDone, setGamesDone] = useState<boolean[]>([false, false, false])
+    58→    58→  const [confettiTrigger, setConfettiTrigger] = useState(0)
+    59→    59→  const [lightningTrigger, setLightningTrigger] = useState(0)
+    60→    60→
+    61→    61→  const handleGameComplete = (idx: number) => {
+    62→    62→    const next = [...gamesDone]
+    63→    63→    next[idx] = true
+    64→    64→    setGamesDone(next)
+    65→    65→    sfx.win()
+    66→    66→    if (idx < 2) {
+    67→    67→      // Move to next game after a short delay
+    68→    68→      setTimeout(() => {
+    69→    69→        setGameIdx(idx + 1)
+    70→    70→        sfx.reveal()
+    71→    71→      }, 1500)
+    72→    72→    } else {
+    73→    73→      // All games done → claim phase
+    74→    74→      setTimeout(() => {
+    75→    75→        setPhase("claimed")
+    76→    76→        setConfettiTrigger((t) => t + 1)
+    77→    77→        sfx.reveal()
+    78→    78→      }, 1500)
+    79→    79→    }
+    80→    80→  }
+    81→    81→
+    82→    82→  const reset = () => {
+    83→    83→    sfx.click()
+    84→    84→    setPhase("intro")
+    85→    85→    setGameIdx(0)
+    86→    86→    setGamesDone([false, false, false])
+    87→    87→  }
+    88→    88→
+    89→    89→  return (
+    90→    90→    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    91→    91→      <div className="fixed inset-0 pointer-events-none z-0">
+    92→    92→        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-amber-900/10 rounded-full blur-[150px]" />
+    93→    93→        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[120px]" />
+    94→    94→      </div>
+    95→    95→      <Navbar />
+    96→    96→      <Particles />
+    97→    97→      <ConfettiBurst trigger={confettiTrigger} />
+    98→    98→      <Lightning trigger={lightningTrigger} />
+    99→    99→
+   100→   100→      <main className="relative z-10 pt-20 pb-16 px-4">
+   101→   101→        <div className="max-w-3xl mx-auto">
+   102→   102→          <Link
+   103→   103→            href="/home"
+   104→   104→            onClick={() => sfx.click()}
+   105→   105→            onMouseEnter={() => sfx.hover()}
+   106→   106→            className="inline-flex items-center gap-1.5 text-xs font-mono tracking-[0.2em] uppercase text-purple-400/80 hover:text-purple-300 transition-colors mb-8"
+   107→   107→          >
+   108→   108→            <ArrowLeft className="w-3 h-3" />
+   109→   109→            Back Home
+   110→   110→          </Link>
+   111→   111→
+   112→   112→          {/* ====== IDENTITY BOX (top, no photo) ====== */}
+   113→   113→          <IdentityBox />
+   114→   114→
+   115→   115→          {/* ====== INTRO PHASE ====== */}
+   116→   116→          {phase === "intro" && (
+   117→   117→            <motion.div
+   118→   118→              initial={{ opacity: 0, y: 20 }}
+   119→   119→              animate={{ opacity: 1, y: 0 }}
+   120→   120→              transition={{ duration: 0.6, delay: 0.2 }}
+   121→   121→              className="mt-10 text-center"
+   122→   122→            >
+   123→   123→              <div className="inline-flex items-center gap-3 text-amber-400/80 mb-4">
+   124→   124→                <span className="w-8 h-px bg-amber-500/40" />
+   125→   125→                <span className="text-xs tracking-[0.5em] font-mono">
+   126→   126→                  HADIAH · DARI KIRIE
+   127→   127→                </span>
+   128→   128→                <span className="w-8 h-px bg-amber-500/40" />
+   129→   129→              </div>
+   130→   130→              <h1 className="text-3xl sm:text-5xl font-black uppercase mb-4 leading-tight">
+   131→   131→                Klaim <span className="text-purple-400">Voucher</span>
+   132→   132→              </h1>
+   133→   133→              <p className="text-sm sm:text-base text-white/60 max-w-xl mx-auto mb-10 leading-relaxed">
+   134→   134→                Voucher ini disegel pakai technique Ope Ope no Mi.
+   135→   135→                Untuk bukanya, kamu harus lewati 3 tahap: <span className="text-cyan-300">Scan</span> untuk lihat isinya,{" "}
+   136→   136→                <span className="text-amber-300">Counter Shock</span> buat nge-charge, lalu{" "}
+   137→   137→                <span className="text-pink-300">Amputate</span> segelnya.
+   138→   138→              </p>
+   139→   139→
+   140→   140→              {/* 5-stage progress preview (intro → scan → counter → amputate → claim) */}
+   141→   141→              <div className="flex items-center justify-center gap-2 mb-10">
+   142→   142→                {["Start", "Scan", "Counter", "Amputate", "Claim"].map((label, i) => (
+   143→   143→                  <div key={label} className="flex items-center">
+   144→   144→                    <div className="flex flex-col items-center">
+   145→   145→                      <div className="w-8 h-8 rounded-full border border-purple-500/40 flex items-center justify-center text-[10px] font-mono text-purple-300/60">
+   146→   146→                        {i + 1}
+   147→   147→                      </div>
+   148→   148→                      <span className="text-[9px] font-mono text-white/40 mt-1 uppercase tracking-wider">
+   149→   149→                        {label}
+   150→   150→                      </span>
+   151→   151→                    </div>
+   152→   152→                    {i < 4 && <div className="w-6 h-px bg-purple-500/30 mx-1 mb-4" />}
+   153→   153→                  </div>
+   154→   154→                ))}
+   155→   155→              </div>
+   156→   156→
+   157→   157→              <button
+   158→   158→                onClick={() => {
+   159→   159→                  sfx.click()
+   160→   160→                  setPhase("games")
+   161→   161→                }}
+   162→   162→                onMouseEnter={() => sfx.hover()}
+   163→   163→                className="group inline-flex items-center gap-3 px-8 py-4 border-2 border-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-colors"
+   164→   164→              >
+   165→   165→                <Zap className="w-4 h-4 text-purple-300 group-hover:scale-110 transition-transform" />
+   166→   166→                <span className="text-sm font-bold uppercase tracking-[0.3em]">
+   167→   167→                  Mulai Ritual
+   168→   168→                </span>
+   169→   169→                <ChevronRight className="w-4 h-4 text-purple-300 group-hover:translate-x-1 transition-transform" />
+   170→   170→              </button>
+   171→   171→            </motion.div>
+   172→   172→          )}
+   173→   173→
+   174→   174→          {/* ====== GAMES PHASE ====== */}
+   175→   175→          {phase === "games" && (
+   176→   176→            <motion.div
+   177→   177→              initial={{ opacity: 0, y: 20 }}
+   178→   178→              animate={{ opacity: 1, y: 0 }}
+   179→   179→              transition={{ duration: 0.6 }}
+   180→   180→              className="mt-10"
+   181→   181→            >
+   182→   182→              {/* Progress dots */}
+   183→   183→              <div className="flex items-center justify-center gap-3 mb-10">
+   184→   184→                {["Scan", "Counter", "Amputate"].map((label, i) => (
+   185→   185→                  <div key={label} className="flex items-center">
+   186→   186→                    <div className={`flex flex-col items-center`}>
+   187→   187→                      <motion.div
+   188→   188→                        animate={gamesDone[i] ? { scale: [1, 1.3, 1] } : {}}
+   189→   189→                        className={`w-10 h-10 rounded-full border-2 flex items-center justify-center ${
+   190→   190→                          gamesDone[i]
+   191→   191→                            ? "border-green-400 bg-green-500/15 text-green-400"
+   192→   192→                            : i === gameIdx
+   193→   193→                            ? "border-purple-400 bg-purple-500/15 text-purple-300"
+   194→   194→                            : "border-white/15 text-white/30"
+   195→   195→                        }`}
+   196→   196→                      >
+   197→   197→                        {gamesDone[i] ? (
+   198→   198→                          <CheckCircle2 className="w-5 h-5" />
+   199→   199→                        ) : (
+   200→   200→                          <span className="text-xs font-mono">{i + 1}</span>
+   201→   201→                        )}
+   202→   202→                      </motion.div>
+   203→   203→                      <span className="text-[10px] font-mono text-white/50 mt-1.5 uppercase tracking-wider">
+   204→   204→                        {label}
+   205→   205→                      </span>
+   206→   206→                    </div>
+   207→   207→                    {i < 2 && (
+   208→   208→                      <div className={`w-10 h-px mx-1 mb-5 ${gamesDone[i] ? "bg-green-400/50" : "bg-purple-500/20"}`} />
+   209→   209→                    )}
+   210→   210→                  </div>
+   211→   211→                ))}
+   212→   212→              </div>
+   213→   213→
+   214→   214→              {/* Render current game */}
+   215→   215→              {gameIdx === 0 && (
+   216→   216→                <ScanGame onComplete={() => handleGameComplete(0)} done={gamesDone[0]} />
+   217→   217→              )}
+   218→   218→              {gameIdx === 1 && (
+   219→   219→                <CounterShockGame
+   220→   220→                  onComplete={() => handleGameComplete(1)}
+   221→   221→                  done={gamesDone[1]}
+   222→   222→                  onLightning={() => setLightningTrigger((t) => t + 1)}
+   223→   223→                />
+   224→   224→              )}
+   225→   225→              {gameIdx === 2 && (
+   226→   226→                <AmputateGame onComplete={() => handleGameComplete(2)} done={gamesDone[2]} />
+   227→   227→              )}
+   228→   228→            </motion.div>
+   229→   229→          )}
+   230→   230→
+   231→   231→          {/* ====== CLAIMED PHASE (matches dropped screenshots) ====== */}
+   232→   232→          {phase === "claimed" && (
+   233→   233→            <ClaimedGift onReset={reset} onProceedToVoucher={() => setPhase("voucher")} />
+   234→   234→          )}
+   235→   235→
+   236→   236→          {/* ====== VOUCHER TEAR PHASE (only Kirie can tear) ====== */}
+   237→   237→          {phase === "voucher" && (
+   238→   238→            <VoucherTear onBack={() => setPhase("claimed")} />
+   239→   239→          )}
+   240→   240→        </div>
+   241→   241→      </main>
+   242→   242→    </div>
+   243→   243→  )
+   244→   244→}
+   245→   245→
+   246→   246→// ============================================================
+   247→   247→//  IDENTITY BOX (no photo, bounty-style)
+   248→   248→// ============================================================
+   249→   249→function IdentityBox() {
+   250→   250→  return (
+   251→   251→    <motion.div
+   252→   252→      initial={{ opacity: 0, y: 20 }}
+   253→   253→      animate={{ opacity: 1, y: 0 }}
+   254→   254→      transition={{ duration: 0.6 }}
+   255→   255→      className="relative border-2 border-amber-700/50 bg-gradient-to-b from-amber-950/20 to-black p-6 sm:p-8 text-center"
+   256→   256→    >
+   257→   257→      {/* WANTED / BOUNTY header */}
+   258→   258→      <p className="text-[10px] font-mono tracking-[0.5em] text-amber-500/70 uppercase mb-1">
+   259→   259→        WANTED · 死または生
+   260→   260→      </p>
+   261→   261→      <p className="text-xs font-mono tracking-[0.3em] text-amber-500/50 uppercase mb-4">
+   262→   262→        DEAD OR ALIVE
+   263→   263→      </p>
+   264→   264→
+   265→   265→      {/* Name big */}
+   266→   266→      <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-[0.1em] text-amber-200 mb-2">
+   267→   267→        YAVA
+   268→   268→      </h2>
+   269→   269→      <p className="text-[10px] font-mono tracking-[0.4em] text-amber-500/60 uppercase mb-6">
+   270→   270→        alias · 21 · DKV · artist
+   271→   271→      </p>
+   272→   272→
+   273→   273→      {/* Bounty box */}
+   274→   274→      <div className="inline-block px-6 py-3 border border-amber-700/40 bg-amber-950/30 mb-4">
+   275→   275→        <p className="text-[10px] font-mono tracking-[0.4em] text-amber-500/60 uppercase mb-1">
+   276→   276→          BOUNTY
+   277→   277→        </p>
+   278→   278→        <p className="text-2xl sm:text-3xl font-black font-mono text-amber-300">
+   279→   279→          ∞
+   280→   280→        </p>
+   281→   281→        <p className="text-[10px] font-mono text-amber-500/50 italic mt-1">
+   282→   282→          (atau 1× Hadiah Spesial dari Kirie — mana yang lebih besar)
+   283→   283→        </p>
+   284→   284→      </div>
+   285→   285→
+   286→   286→      {/* Stats row */}
+   287→   287→      <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 max-w-md mx-auto">
+   288→   288→        <div>
+   289→   289→          <p className="text-[10px] font-mono tracking-widest text-amber-500/60 uppercase">Status</p>
+   290→   290→          <p className="text-sm font-bold text-white">Only Alive</p>
+   291→   291→        </div>
+   292→   292→        <div>
+   293→   293→          <p className="text-[10px] font-mono tracking-widest text-amber-500/60 uppercase">Affiliation</p>
+   294→   294→          <p className="text-sm font-bold text-white">Heart Pirates</p>
+   295→   295→        </div>
+   296→   296→        <div>
+   297→   297→          <p className="text-[10px] font-mono tracking-widest text-amber-500/60 uppercase">Devil Fruit</p>
+   298→   298→          <p className="text-sm font-bold text-white">N/A</p>
+   299→   299→        </div>
+   300→   300→      </div>
+   301→   301→
+   302→   302→      {/* Footer note */}
+   303→   303→      <p className="text-[10px] font-mono tracking-[0.3em] text-amber-500/40 uppercase mt-6">
+   304→   304→        ◆ issued 22.06 · registered in ROOM log ◆
+   305→   305→      </p>
+   306→   306→    </motion.div>
+   307→   307→  )
+   308→   308→}
+   309→   309→
+   310→   310→// ============================================================
+   311→   311→//  GAME 1 — SCAN (hold to scan)
+   312→   312→// ============================================================
+   313→   313→function ScanGame({ onComplete, done }: { onComplete: () => void; done: boolean }) {
+   314→   314→  const [progress, setProgress] = useState(0)
+   315→   315→  const [scanning, setScanning] = useState(false)
+   316→   316→  const holdRef = useRef(false)
+   317→   317→  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+   318→   318→
+   319→   319→  const startHold = () => {
+   320→   320→    if (done || scanning) return
+   321→   321→    holdRef.current = true
+   322→   322→    setScanning(true)
+   323→   323→    sfx.tick()
+   324→   324→    const startTime = Date.now()
+   325→   325→    const DURATION = 3500 // 3.5s hold to complete
+   326→   326→    intervalRef.current = setInterval(() => {
+   327→   327→      if (!holdRef.current) {
+   328→   328→        if (intervalRef.current) clearInterval(intervalRef.current)
+   329→   329→        setScanning(false)
+   330→   330→        return
+   331→   331→      }
+   332→   332→      const elapsed = Date.now() - startTime
+   333→   333→      const pct = Math.min(100, (elapsed / DURATION) * 100)
+   334→   334→      setProgress(pct)
+   335→   335→      // Periodic tick sounds
+   336→   336→      if (Math.floor(pct) % 25 === 0 && Math.floor(pct) > 0) sfx.tick()
+   337→   337→      if (pct >= 100) {
+   338→   338→        if (intervalRef.current) clearInterval(intervalRef.current)
+   339→   339→        holdRef.current = false
+   340→   340→        setScanning(false)
+   341→   341→        sfx.reveal()
+   342→   342→        onComplete()
+   343→   343→      }
+   344→   344→    }, 50)
+   345→   345→  }
+   346→   346→
+   347→   347→  const endHold = () => {
+   348→   348→    holdRef.current = false
+   349→   349→    if (intervalRef.current) clearInterval(intervalRef.current)
+   350→   350→    setScanning(false)
+   351→   351→    // If not complete, decay progress slowly
+   352→   352→    if (progress < 100) {
+   353→   353→      const decay = setInterval(() => {
+   354→   354→        setProgress((p) => {
+   355→   355→          if (p <= 0) {
+   356→   356→            clearInterval(decay)
+   357→   357→            return 0
+   358→   358→          }
+   359→   359→          return Math.max(0, p - 2)
+   360→   360→        })
+   361→   361→      }, 30)
+   362→   362→      setTimeout(() => clearInterval(decay), 2000)
+   363→   363→    }
+   364→   364→  }
+   365→   365→
+   366→   366→  useEffect(() => {
+   367→   367→    return () => {
+   368→   368→      if (intervalRef.current) clearInterval(intervalRef.current)
+   369→   369→    }
+   370→   370→  }, [])
+   371→   371→
+   372→   372→  return (
+   373→   373→    <div className="text-center">
+   374→   374→      <p className="text-[10px] font-mono tracking-[0.4em] text-cyan-400/80 uppercase mb-2">
+   375→   375→        STAGE 01 · SCAN
+   376→   376→      </p>
+   377→   377→      <h2 className="text-2xl sm:text-3xl font-black uppercase mb-3">
+   378→   378→        <ruby>
+   379→   379→          診察<rt>しんさつ</rt>
+   380→   380→        </ruby>{" "}
+   381→   381→        · Scan the Seal
+   382→   382→      </h2>
+   383→   383→      <p className="text-sm text-white/60 max-w-md mx-auto mb-8">
+   384→   384→        Tahan tombol di bawah untuk memindai segel. Tahan sampai 100% — lepaskan sebelumnya, progress decay.
+   385→   385→      </p>
+   386→   386→
+   387→   387→      {/* Scan target visual */}
+   388→   388→      <div className="relative w-64 h-64 mx-auto mb-8 border-2 border-cyan-500/40 bg-black/60 overflow-hidden">
+   389→   389→        {/* The seal inside — slowly reveals as progress increases */}
+   390→   390→        <div className="absolute inset-0 flex items-center justify-center">
+   391→   391→          <motion.div
+   392→   392→            animate={scanning ? { rotate: 360 } : {}}
+   393→   393→            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+   394→   394→          >
+   395→   395→            <Lock className={`w-20 h-20 ${progress >= 100 ? "text-green-400" : "text-cyan-400/60"}`} />
+   396→   396→          </motion.div>
+   397→   397→        </div>
+   398→   398→
+   399→   399→        {/* Scanning beam */}
+   400→   400→        {scanning && (
+   401→   401→          <motion.div
+   402→   402→            initial={{ y: 0 }}
+   403→   403→            animate={{ y: [0, 256, 0] }}
+   404→   404→            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+   405→   405→            className="absolute left-0 right-0 h-0.5 bg-cyan-400 pointer-events-none"
+   406→   406→            style={{ boxShadow: "0 0 12px #22d3ee, 0 0 24px #22d3ee" }}
+   407→   407→          />
+   408→   408→        )}
+   409→   409→
+   410→   410→        {/* Progress bar at bottom */}
+   411→   411→        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+   412→   412→          <div
+   413→   413→            className="h-full bg-cyan-400 transition-all"
+   414→   414→            style={{ width: `${progress}%`, boxShadow: "0 0 8px #22d3ee" }}
+   415→   415→          />
+   416→   416→        </div>
+   417→   417→
+   418→   418→        {/* Reveal overlay mask — top portion hidden until scanned */}
+   419→   419→        <div
+   420→   420→          className="absolute inset-0 bg-black/80 pointer-events-none flex items-center justify-center"
+   421→   421→          style={{ opacity: Math.max(0, 1 - progress / 100) }}
+   422→   422→        >
+   423→   423→          <span className="text-[10px] font-mono tracking-[0.4em] text-cyan-300/70 uppercase">
+   424→   424→            SEALED
+   425→   425→          </span>
+   426→   426→        </div>
+   427→   427→
+   428→   428→        {progress >= 100 && (
+   429→   429→          <motion.div
+   430→   430→            initial={{ scale: 0 }}
+   431→   431→            animate={{ scale: 1 }}
+   432→   432→            transition={{ type: "spring", stiffness: 200 }}
+   433→   433→            className="absolute top-2 right-2"
+   434→   434→          >
+   435→   435→            <CheckCircle2 className="w-6 h-6 text-green-400" />
+   436→   436→          </motion.div>
+   437→   437→        )}
+   438→   438→      </div>
+   439→   439→
+   440→   440→      {/* Progress percent */}
+   441→   441→      <p className="text-3xl font-black font-mono text-cyan-300 mb-6">
+   442→   442→        {Math.round(progress)}%
+   443→   443→      </p>
+   444→   444→
+   445→   445→      {/* Hold button */}
+   446→   446→      <button
+   447→   447→        onMouseDown={startHold}
+   448→   448→        onMouseUp={endHold}
+   449→   449→        onMouseLeave={endHold}
+   450→   450→        onTouchStart={startHold}
+   451→   451→        onTouchEnd={endHold}
+   452→   452→        disabled={done}
+   453→   453→        onMouseEnter={() => sfx.hover()}
+   454→   454→        className={`inline-flex items-center gap-3 px-8 py-4 border-2 transition-all select-none ${
+   455→   455→          done
+   456→   456→            ? "border-green-500/60 bg-green-500/15 text-green-300 cursor-default"
+   457→   457→            : scanning
+   458→   458→            ? "border-cyan-300 bg-cyan-500/20 text-cyan-100 cursor-grabbing"
+   459→   459→            : "border-cyan-500/60 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 cursor-grab"
+   460→   460→        }`}
+   461→   461→      >
+   462→   462→        <ScanLine className={`w-5 h-5 ${scanning ? "animate-pulse" : ""}`} />
+   463→   463→        <span className="text-sm font-bold uppercase tracking-[0.3em]">
+   464→   464→          {done ? "Scan Selesai" : scanning ? "Scanning..." : "Hold to Scan"}
+   465→   465→        </span>
+   466→   466→      </button>
+   467→   467→    </div>
+   468→   468→  )
+   469→   469→}
+   470→   470→
+   471→   471→// ============================================================
+   472→   472→//  GAME 2 — COUNTER SHOCK (click to charge, lightning at 100%)
+   473→   473→// ============================================================
+   474→   474→function CounterShockGame({
+   475→   475→  onComplete,
+   476→   476→  done,
+   477→   477→  onLightning,
+   478→   478→}: {
+   479→   479→  onComplete: () => void
+   480→   480→  done: boolean
+   481→   481→  onLightning: () => void
+   482→   482→}) {
+   483→   483→  const [progress, setProgress] = useState(0)
+   484→   484→  const [clicks, setClicks] = useState(0)
+   485→   485→
+   486→   486→  const handleClick = () => {
+   487→   487→    if (done) return
+   488→   488→    // Each click adds 5-9% — randomness adds variety
+   489→   489→    const increment = 5 + Math.random() * 4
+   490→   490→    const newProgress = Math.min(100, progress + increment)
+   491→   491→    setProgress(newProgress)
+   492→   492→    setClicks((c) => c + 1)
+   493→   493→    sfx.tally()
+   494→   494→
+   495→   495→    if (newProgress >= 100) {
+   496→   496→      // Lightning strike!
+   497→   497→      onLightning()
+   498→   498→      sfx.judgement()
+   499→   499→      setTimeout(() => sfx.win(), 600)
+   500→   500→      onComplete()
+   501→   501→    }
+   502→   502→  }
+   503→   503→
+   504→   504→  return (
+   505→   505→    <div className="text-center">
+   506→   506→      <p className="text-[10px] font-mono tracking-[0.4em] text-amber-400/80 uppercase mb-2">
+   507→   507→        STAGE 02 · COUNTER SHOCK
+   508→   508→      </p>
+   509→   509→      <h2 className="text-2xl sm:text-3xl font-black uppercase mb-3">
+   510→   510→        <ruby>
+   511→   511→          電撃<rt>でんげき</rt>
+   512→   512→        </ruby>{" "}
+   513→   513→        · Charge to 100%
+   514→   514→      </h2>
+   515→   515→      <p className="text-sm text-white/60 max-w-md mx-auto mb-8">
+   516→   516→        Klik berulang untuk charge energi. Tiap klik nambah 5-9%. Sampai 100% → petir menyambar.
+   517→   517→      </p>
+   518→   518→
+   519→   519→      {/* Circular meter */}
+   520→   520→      <div className="relative w-64 h-64 mx-auto mb-8">
+   521→   521→        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+   522→   522→          <circle
+   523→   523→            cx="50"
+   524→   524→            cy="50"
+   525→   525→            r="44"
+   526→   526→            fill="none"
+   527→   527→            stroke="rgba(168,85,247,0.15)"
+   528→   528→            strokeWidth="4"
+   529→   529→          />
+   530→   530→          <motion.circle
+   531→   531→            cx="50"
+   532→   532→            cy="50"
+   533→   533→            r="44"
+   534→   534→            fill="none"
+   535→   535→            stroke={progress >= 100 ? "#fbbf24" : "#a855f7"}
+   536→   536→            strokeWidth="4"
+   537→   537→            strokeLinecap="round"
+   538→   538→            strokeDasharray={2 * Math.PI * 44}
+   539→   539→            animate={{
+   540→   540→              strokeDashoffset: 2 * Math.PI * 44 * (1 - progress / 100),
+   541→   541→            }}
+   542→   542→            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+   543→   543→            style={{ filter: "drop-shadow(0 0 6px currentColor)" }}
+   544→   544→          />
+   545→   545→        </svg>
+   546→   546→
+   547→   547→        {/* Center label */}
+   548→   548→        <div className="absolute inset-0 flex flex-col items-center justify-center">
+   549→   549→          {progress >= 100 ? (
+   550→   550→            <motion.div
+   551→   551→              initial={{ scale: 0 }}
+   552→   552→              animate={{ scale: 1 }}
+   553→   553→              transition={{ type: "spring", stiffness: 200 }}
+   554→   554→            >
+   555→   555→              <Zap className="w-16 h-16 text-amber-300 fill-amber-400/30" />
+   556→   556→            </motion.div>
+   557→   557→          ) : (
+   558→   558→            <>
+   559→   559→              <motion.p
+   560→   560→                key={Math.round(progress)}
+   561→   561→                initial={{ scale: 1.2, opacity: 0.7 }}
+   562→   562→                animate={{ scale: 1, opacity: 1 }}
+   563→   563→                transition={{ duration: 0.1 }}
+   564→   564→                className="text-4xl font-black font-mono text-purple-300"
+   565→   565→              >
+   566→   566→                {Math.round(progress)}%
+   567→   567→              </motion.p>
+   568→   568→              <p className="text-[10px] font-mono text-white/40 mt-1 uppercase tracking-widest">
+   569→   569→                {clicks} clicks
+   570→   570→              </p>
+   571→   571→            </>
+   572→   572→          )}
+   573→   573→        </div>
+   574→   574→
+   575→   575→        {/* Lightning sparks when high */}
+   576→   576→        {progress > 60 && progress < 100 && (
+   577→   577→          <motion.div
+   578→   578→            animate={{ opacity: [0.2, 0.8, 0.2] }}
+   579→   579→            transition={{ duration: 0.3, repeat: Infinity }}
+   580→   580→            className="absolute inset-0 rounded-full border-2 border-amber-400/40 pointer-events-none"
+   581→   581→            style={{ boxShadow: "0 0 24px rgba(251,191,36,0.4)" }}
+   582→   582→          />
+   583→   583→        )}
+   584→   584→      </div>
+   585→   585→
+   586→   586→      {/* Click button */}
+   587→   587→      <button
+   588→   588→        onClick={handleClick}
+   589→   589→        disabled={done}
+   590→   590→        onMouseEnter={() => sfx.hover()}
+   591→   591→        whileTap={{ scale: 0.95 }}
+   592→   592→        className={`inline-flex items-center gap-3 px-10 py-5 border-2 transition-all ${
+   593→   593→          done
+   594→   594→            ? "border-green-500/60 bg-green-500/15 text-green-300 cursor-default"
+   595→   595→            : "border-amber-400 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 active:scale-95 cursor-pointer"
+   596→   596→        }`}
+   597→   597→      >
+   598→   598→        <Zap className="w-6 h-6 fill-amber-400/30" />
+   599→   599→        <span className="text-base font-black uppercase tracking-[0.3em]">
+   600→   600→          {done ? "Discharged" : "SHOCK"}
+   601→   601→        </span>
+   602→   602→      </button>
+   603→   603→    </div>
+   604→   604→  )
+   605→   605→}
+   606→   606→
+   607→   607→// ============================================================
+   608→   608→//  GAME 3 — AMPUTATE (slash through seals, Fruit Ninja style)
+   609→   609→// ============================================================
+   610→   610→interface Seal {
+   611→   611→  id: number
+   612→   612→  x: number // percent
+   613→   613→  y: number // percent
+   614→   614→  slashed: boolean
+   615→   615→  spawnedAt: number
+   616→   616→}
+   617→   617→
+   618→   618→function AmputateGame({ onComplete, done }: { onComplete: () => void; done: boolean }) {
+   619→   619→  const [seals, setSeals] = useState<Seal[]>([])
+   620→   620→  const [slashes, setSlashes] = useState<{ id: number; x1: number; y1: number; x2: number; y2: number }[]>([])
+   621→   621→  const [dragging, setDragging] = useState(false)
+   622→   622→  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
+   623→   623→  const [currentPos, setCurrentPos] = useState<{ x: number; y: number } | null>(null)
+   624→   624→  const idRef = useRef(0)
+   625→   625→  const slashIdRef = useRef(0)
+   626→   626→  const fieldRef = useRef<HTMLDivElement>(null)
+   627→   627→  const completedRef = useRef(false)
+   628→   628→  const REQUIRED = 5 // 5 seals to slash
+   629→   629→
+   630→   630→  // Spawn seals one at a time, with delays
+   631→   631→  useEffect(() => {
+   632→   632→    if (done) return
+   633→   633→    let cancelled = false
+   634→   634→    const timers: ReturnType<typeof setTimeout>[] = []
+   635→   635→    for (let i = 0; i < REQUIRED; i++) {
+   636→   636→      const t = setTimeout(() => {
+   637→   637→        if (cancelled) return
+   638→   638→        const id = ++idRef.current
+   639→   639→        const x = 15 + Math.random() * 70
+   640→   640→        const y = 20 + Math.random() * 60
+   641→   641→        setSeals((prev) => [...prev, { id, x, y, slashed: false, spawnedAt: Date.now() }])
+   642→   642→        sfx.eyeFlash()
+   643→   643→      }, i * 800)
+   644→   644→      timers.push(t)
+   645→   645→    }
+   646→   646→    return () => {
+   647→   647→      cancelled = true
+   648→   648→      timers.forEach(clearTimeout)
+   649→   649→    }
+   650→   650→  }, [done])
+   651→   651→
+   652→   652→  const getRelativePos = (e: React.MouseEvent | React.TouchEvent) => {
+   653→   653→    if (!fieldRef.current) return { x: 0, y: 0 }
+   654→   654→    const rect = fieldRef.current.getBoundingClientRect()
+   655→   655→    let clientX: number, clientY: number
+   656→   656→    if ("touches" in e) {
+   657→   657→      clientX = e.touches[0]?.clientX ?? 0
+   658→   658→      clientY = e.touches[0]?.clientY ?? 0
+   659→   659→    } else {
+   660→   660→      clientX = e.clientX
+   661→   661→      clientY = e.clientY
+   662→   662→    }
+   663→   663→    return {
+   664→   664→      x: ((clientX - rect.left) / rect.width) * 100,
+   665→   665→      y: ((clientY - rect.top) / rect.height) * 100,
+   666→   666→    }
+   667→   667→  }
+   668→   668→
+   669→   669→  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
+   670→   670→    if (done) return
+   671→   671→    e.preventDefault()
+   672→   672→    const pos = getRelativePos(e)
+   673→   673→    setDragging(true)
+   674→   674→    setDragStart(pos)
+   675→   675→    setCurrentPos(pos)
+   676→   676→  }
+   677→   677→
+   678→   678→  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+   679→   679→    if (!dragging || done) return
+   680→   680→    e.preventDefault()
+   681→   681→    const pos = getRelativePos(e)
+   682→   682→    setCurrentPos(pos)
+   683→   683→    // Check if we passed through any unslashed seal
+   684→   684→    setSeals((prev) => {
+   685→   685→      let changed = false
+   686→   686→      const next = prev.map((s) => {
+   687→   687→        if (s.slashed) return s
+   688→   688→        const dx = pos.x - s.x
+   689→   689→        const dy = pos.y - s.y
+   690→   690→        const dist = Math.sqrt(dx * dx + dy * dy)
+   691→   691→        if (dist < 8) {
+   692→   692→          // Hit!
+   693→   693→          changed = true
+   694→   694→          sfx.slash()
+   695→   695→          return { ...s, slashed: true }
+   696→   696→        }
+   697→   697→        return s
+   698→   698→      })
+   699→   699→      if (changed) {
+   700→   700→        // Add a slash visual
+   701→   701→        if (dragStart) {
+   702→   702→          const slashId = ++slashIdRef.current
+   703→   703→          setSlashes((p) => [
+   704→   704→            ...p,
+   705→   705→            { id: slashId, x1: dragStart.x, y1: dragStart.y, x2: pos.x, y2: pos.y },
+   706→   706→          ])
+   707→   707→          // Remove the slash after 400ms
+   708→   708→          setTimeout(() => {
+   709→   709→            setSlashes((p) => p.filter((s) => s.id !== slashId))
+   710→   710→          }, 400)
+   711→   711→          setDragStart(pos)
+   712→   712→        }
+   713→   713→        // Check if all REQUIRED seals are slashed
+   714→   714→        const allSlashed = next.filter((s) => s.slashed).length >= REQUIRED
+   715→   715→        if (allSlashed && !completedRef.current) {
+   716→   716→          completedRef.current = true
+   717→   717→          setTimeout(() => onComplete(), 600)
+   718→   718→        }
+   719→   719→      }
+   720→   720→      return next
+   721→   721→    })
+   722→   722→  }
+   723→   723→
+   724→   724→  const handleEnd = () => {
+   725→   725→    setDragging(false)
+   726→   726→    setDragStart(null)
+   727→   727→    setCurrentPos(null)
+   728→   728→  }
+   729→   729→
+   730→   730→  return (
+   731→   731→    <div className="text-center">
+   732→   732→      <p className="text-[10px] font-mono tracking-[0.4em] text-pink-400/80 uppercase mb-2">
+   733→   733→        STAGE 03 · AMPUTATE
+   734→   734→      </p>
+   735→   735→      <h2 className="text-2xl sm:text-3xl font-black uppercase mb-3">
+   736→   736→        <ruby>
+   737→   737→          切断<rt>せつだん</rt>
+   738→   738→        </ruby>{" "}
+   739→   739→        · Slash All Seals
+   740→   740→      </h2>
+   741→   741→      <p className="text-sm text-white/60 max-w-md mx-auto mb-6">
+   742→   742→        Click and drag (atau swipe) untuk menebas segel. Jumlah: {REQUIRED} segel. Buat gerakan slash seperti Fruit Ninja.
+   743→   743→      </p>
+   744→   744→
+   745→   745→      {/* Slash count */}
+   746→   746→      <p className="text-xs font-mono text-pink-300 mb-4 tracking-widest">
+   747→   747→        {seals.filter((s) => s.slashed).length} / {REQUIRED} segel ditebas
+   748→   748→      </p>
+   749→   749→
+   750→   750→      {/* Slash field */}
+   751→   751→      <div
+   752→   752→        ref={fieldRef}
+   753→   753→        onMouseDown={handleStart}
+   754→   754→        onMouseMove={handleMove}
+   755→   755→        onMouseUp={handleEnd}
+   756→   756→        onMouseLeave={handleEnd}
+   757→   757→        onTouchStart={handleStart}
+   758→   758→        onTouchMove={handleMove}
+   759→   759→        onTouchEnd={handleEnd}
+   760→   760→        className={`relative w-full h-[420px] border-2 ${
+   761→   761→          done ? "border-green-500/60" : "border-pink-500/40"
+   762→   762→        } bg-gradient-to-b from-[#0a0510] to-[#050208] overflow-hidden touch-none ${
+   763→   763→          done ? "" : "cursor-crosshair"
+   764→   764→        }`}
+   765→   765→      >
+   766→   766→        {/* Subtle grid */}
+   767→   767→        <div
+   768→   768→          className="absolute inset-0 opacity-[0.05]"
+   769→   769→          style={{
+   770→   770→            backgroundImage:
+   771→   771→              "linear-gradient(rgba(236,72,153,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(236,72,153,0.5) 1px, transparent 1px)",
+   772→   772→            backgroundSize: "40px 40px",
+   773→   773→          }}
+   774→   774→        />
+   775→   775→
+   776→   776→        {/* Seals */}
+   777→   777→        {seals.map((s) => (
+   778→   778→          <motion.div
+   779→   779→            key={s.id}
+   780→   780→            initial={{ scale: 0, rotate: -90, opacity: 0 }}
+   781→   781→            animate={
+   782→   782→              s.slashed
+   783→   783→                ? { scale: [1, 1.5, 0], rotate: 90, opacity: 0 }
+   784→   784→                : { scale: 1, rotate: 0, opacity: 1 }
+   785→   785→            }
+   786→   786→            transition={{ type: "spring", stiffness: 200, damping: 18 }}
+   787→   787→            style={{ left: `${s.x}%`, top: `${s.y}%` }}
+   788→   788→            className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+   789→   789→          >
+   790→   790→            <motion.div
+   791→   791→              animate={{ rotate: 360 }}
+   792→   792→              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+   793→   793→              className="relative w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-full border-2 border-pink-400 bg-black/70"
+   794→   794→              style={{ boxShadow: "0 0 12px rgba(236,72,153,0.5)" }}
+   795→   795→            >
+   796→   796→              <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-pink-300" />
+   797→   797→            </motion.div>
+   798→   798→          </motion.div>
+   799→   799→        ))}
+   800→   800→
+   801→   801→        {/* Slash trails */}
+   802→   802→        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+   803→   803→          {slashes.map((s) => (
+   804→   804→            <motion.line
+   805→   805→              key={s.id}
+   806→   806→              x1={`${s.x1}%`}
+   807→   807→              y1={`${s.y1}%`}
+   808→   808→              x2={`${s.x2}%`}
+   809→   809→              y2={`${s.y2}%`}
+   810→   810→              stroke="#f9a8d4"
+   811→   811→              strokeWidth="3"
+   812→   812→              strokeLinecap="round"
+   813→   813→              initial={{ pathLength: 0, opacity: 1 }}
+   814→   814→              animate={{ pathLength: 1, opacity: [1, 1, 0] }}
+   815→   815→              transition={{ duration: 0.4 }}
+   816→   816→              style={{ filter: "drop-shadow(0 0 6px #ec4899)" }}
+   817→   817→            />
+   818→   818→          ))}
+   819→   819→          {/* Current drag indicator */}
+   820→   820→          {dragging && dragStart && currentPos && (
+   821→   821→            <line
+   822→   822→              x1={`${dragStart.x}%`}
+   823→   823→              y1={`${dragStart.y}%`}
+   824→   824→              x2={`${currentPos.x}%`}
+   825→   825→              y2={`${currentPos.y}%`}
+   826→   826→              stroke="#f9a8d4"
+   827→   827→              strokeWidth="2"
+   828→   828→              strokeLinecap="round"
+   829→   829→              opacity={0.5}
+   830→   830→              style={{ filter: "drop-shadow(0 0 4px #ec4899)" }}
+   831→   831→            />
+   832→   832→          )}
+   833→   833→        </svg>
+   834→   834→
+   835→   835→        {/* Done overlay */}
+   836→   836→        {done && (
+   837→   837→          <motion.div
+   838→   838→            initial={{ opacity: 0 }}
+   839→   839→            animate={{ opacity: 1 }}
+   840→   840→            className="absolute inset-0 flex items-center justify-center bg-black/70"
+   841→   841→          >
+   842→   842→            <motion.div
+   843→   843→              initial={{ scale: 0 }}
+   844→   844→              animate={{ scale: 1 }}
+   845→   845→              transition={{ type: "spring", stiffness: 200 }}
+   846→   846→            >
+   847→   847→              <CheckCircle2 className="w-16 h-16 text-green-400" />
+   848→   848→            </motion.div>
+   849→   849→          </motion.div>
+   850→   850→        )}
+   851→   851→      </div>
+   852→   852→
+   853→   853→      <p className="text-[10px] font-mono text-white/40 mt-4 uppercase tracking-widest">
+   854→   854→        Tip: drag dari luar segel → lewat tengah segel → selesai. Jangan klik doang.
+   855→   855→      </p>
+   856→   856→    </div>
+   857→   857→  )
+   858→   858→}
+   859→   859→
+   860→   860→// ============================================================
+   861→   861→//  CLAIMED GIFT screen (matches dropped screenshots)
+   862→   862→// ============================================================
+   863→   863→function ClaimedGift({
+   864→   864→  onReset,
+   865→   865→  onProceedToVoucher,
+   866→   866→}: {
+   867→   867→  onReset: () => void
+   868→   868→  onProceedToVoucher: () => void
+   869→   869→}) {
+   870→   870→  const [showHidden, setShowHidden] = useState(false)
+   871→   871→
+   872→   872→  return (
+   873→   873→    <motion.div
+   874→   874→      initial={{ opacity: 0, scale: 0.9, rotateY: 90 }}
+   875→   875→      animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+   876→   876→      transition={{ type: "spring", stiffness: 120, damping: 18 }}
+   877→   877→      className="mt-10"
+   878→   878→    >
+   879→   879→      {/* Top label */}
+   880→   880→      <div className="text-center mb-6">
+   881→   881→        <p className="text-[10px] font-mono tracking-[0.5em] text-purple-400/70 uppercase mb-2">
+   882→   882→          HADIAH · DARI KIRIE
+   883→   883→        </p>
+   884→   884→        <h1 className="text-3xl sm:text-5xl font-black uppercase leading-tight">
+   885→   885→          Klaim <span className="text-purple-400">Voucher</span>
+   886→   886→        </h1>
+   887→   887→      </div>
+   888→   888→
+   889→   889→      {/* Progress: all 5 stages completed */}
+   890→   890→      <div className="flex items-center justify-center gap-2 mb-8">
+   891→   891→        {["Start", "Scan", "Counter", "Amputate", "Claim"].map((label, i) => (
+   892→   892→          <div key={label} className="flex items-center">
+   893→   893→            <div className="flex flex-col items-center">
+   894→   894→              <motion.div
+   895→   895→                initial={{ scale: 0 }}
+   896→   896→                animate={{ scale: 1 }}
+   897→   897→                transition={{ delay: i * 0.1, type: "spring", stiffness: 200 }}
+   898→   898→                className="w-8 h-8 rounded-full bg-purple-500/20 border border-purple-400 flex items-center justify-center"
+   899→   899→              >
+   900→   900→                <CheckCircle2 className="w-4 h-4 text-purple-300" />
+   901→   901→              </motion.div>
+   902→   902→              <span className="text-[9px] font-mono text-purple-400/70 mt-1 uppercase tracking-wider">
+   903→   903→                {label}
+   904→   904→              </span>
+   905→   905→            </div>
+   906→   906→            {i < 4 && <div className="w-6 h-px bg-purple-500/50 mx-1 mb-4" />}
+   907→   907→          </div>
+   908→   908→        ))}
+   909→   909→      </div>
+   910→   910→
+   911→   911→      {/* Voucher card — matches screenshots design */}
+   912→   912→      <div className="relative max-w-md mx-auto p-6 sm:p-8 border-2 border-purple-500/50 bg-gradient-to-b from-purple-950/40 to-black">
+   913→   913→        {/* Glow */}
+   914→   914→        <div className="absolute inset-0 bg-purple-500/5 blur-2xl pointer-events-none" />
+   915→   915→
+   916→   916→        <div className="relative text-center">
+   917→   917→          {/* Gift icon */}
+   918→   918→          <motion.div
+   919→   919→            initial={{ scale: 0, rotate: -180 }}
+   920→   920→            animate={{ scale: 1, rotate: 0 }}
+   921→   921→            transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+   922→   922→            className="inline-flex w-14 h-14 rounded-full bg-purple-500/20 border-2 border-purple-400 items-center justify-center mb-3"
+   923→   923→          >
+   924→   924→            <GiftIcon className="w-6 h-6 text-purple-200" />
+   925→   925→          </motion.div>
+   926→   926→
+   927→   927→          <p className="text-[10px] font-mono tracking-[0.4em] text-purple-400/70 uppercase mb-2">
+   928→   928→            VOUCHER · CLAIMED
+   929→   929→          </p>
+   930→   930→          <h2 className="text-2xl sm:text-3xl font-black uppercase text-white mb-1">
+   931→   931→            Hadiah Diklaim
+   932→   932→          </h2>
+   933→   933→          <p className="text-xs text-white/40 italic mb-6">
+   934→   934→            <ruby>
+   935→   935→              贈り物<rt>おくりもの</rt>
+   936→   936→            </ruby>
+   937→   937→          </p>
+   938→   938→
+   939→   939→          {/* Description */}
+   940→   940→          <p className="text-sm text-white/80 leading-relaxed mb-2">
+   941→   941→            Voucher ini berlaku untuk <span className="text-purple-300 font-bold">1× Hadiah Spesial dari Kirie</span>.
+   942→   942→          </p>
+   943→   943→          <p className="text-xs text-white/50 leading-relaxed mb-6">
+   944→   944→            Hadiahnya belum bisa kamu ambil sekarang — nanti akan diserahkan langsung oleh Kirie pada waktunya.
+   945→   945→            Tapi voucher ini adalah bukti bahwa kamu sudah berhasil melewati semua rintangan untuk membukanya.
+   946→   946→          </p>
+   947→   947→
+   948→   948→          {/* Three-column table */}
+   949→   949→          <div className="grid grid-cols-3 gap-3 mb-6 py-4 border-t border-b border-purple-500/30">
+   950→   950→            <div>
+   951→   951→              <p className="text-[9px] font-mono tracking-widest text-purple-400/70 uppercase mb-1">Penerima</p>
+   952→   952→              <p className="text-sm font-bold text-white">Yava</p>
+   953→   953→            </div>
+   954→   954→            <div>
+   955→   955→              <p className="text-[9px] font-mono tracking-widest text-purple-400/70 uppercase mb-1">Pemberi</p>
+   956→   956→              <p className="text-sm font-bold text-white">Kirie</p>
+   957→   957→            </div>
+   958→   958→            <div>
+   959→   959→              <p className="text-[9px] font-mono tracking-widest text-purple-400/70 uppercase mb-1">Tanggal</p>
+   960→   960→              <p className="text-sm font-bold text-white">22·06</p>
+   961→   961→            </div>
+   962→   962→          </div>
+   963→   963→
+   964→   964→          {/* Validity */}
+   965→   965→          <div className="flex items-center justify-center gap-2 mb-6">
+   966→   966→            <Diamond className="w-3 h-3 text-purple-400 fill-purple-400/30" />
+   967→   967→            <p className="text-xs font-mono tracking-[0.3em] text-purple-300 uppercase">
+   968→   968→              Berlaku Selamanya · 1× Pakai
+   969→   969→            </p>
+   970→   970→            <Diamond className="w-3 h-3 text-purple-400 fill-purple-400/30" />
+   971→   971→          </div>
+   972→   972→
+   973→   973→          {/* Hidden message toggle */}
+   974→   974→          <button
+   975→   975→            onClick={() => {
+   976→   976→              sfx.reveal()
+   977→   977→              setShowHidden((v) => !v)
+   978→   978→            }}
+   979→   979→            onMouseEnter={() => sfx.hover()}
+   980→   980→            className="inline-flex items-center gap-2 text-[10px] font-mono tracking-[0.4em] text-purple-400/70 hover:text-purple-300 uppercase mb-3"
+   981→   981→          >
+   982→   982→            <Eye className="w-3 h-3" />
+   983→   983→            Pesan Tersembunyi
+   984→   984→            <Eye className="w-3 h-3" />
+   985→   985→          </button>
+   986→   986→
+   987→   987→          <AnimatePresence>
+   988→   988→            {showHidden && (
+   989→   989→              <motion.div
+   990→   990→                initial={{ opacity: 0, height: 0 }}
+   991→   991→                animate={{ opacity: 1, height: "auto" }}
+   992→   992→                exit={{ opacity: 0, height: 0 }}
+   993→   993→                className="overflow-hidden"
+   994→   994→              >
+   995→   995→                <p className="text-sm text-white/70 italic leading-relaxed mb-2">
+   996→   996→                  &ldquo;Selamat, kamu berhasil melewati Scan, Counter Shock, dan Amputate. Hadiah aslinya nggak se-galak itu kok — ini cuma aku bikin rame aja. Tapi intinya: selamat ulang tahun, Yav. Nanti ketemu ya.&rdquo;
+   997→   997→                </p>
+   998→   998→                <p className="text-xs text-purple-400 text-right">— Kirie</p>
+   999→   999→              </motion.div>
+  1000→  1000→            )}
+  1001→  1001→          </AnimatePresence>
+  1002→  1002→        </div>
+  1003→  1003→      </div>
+  1004→  1004→
+  1005→  1005→      {/* Action buttons */}
+  1006→  1006→      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+  1007→  1007→        <Link
+  1008→  1008→          href="/home"
+  1009→  1009→          onClick={() => sfx.click()}
+  1010→  1010→          onMouseEnter={() => sfx.hover()}
+  1011→  1011→          className="inline-flex items-center gap-2 px-5 py-3 border-2 border-purple-500/60 bg-purple-500/15 text-purple-200 hover:bg-purple-500/25 text-xs uppercase tracking-widest transition-colors"
+  1012→  1012→        >
+  1013→  1013→          <ArrowLeft className="w-3.5 h-3.5" />
+  1014→  1014→          Kembali ke Beranda
+  1015→  1015→        </Link>
+  1016→  1016→        <button
+  1017→  1017→          onClick={onReset}
+  1018→  1018→          onMouseEnter={() => sfx.hover()}
+  1019→  1019→          className="inline-flex items-center gap-2 px-5 py-3 border border-white/20 text-white/70 hover:border-white/40 text-xs uppercase tracking-widest transition-colors"
+  1020→  1020→        >
+  1021→  1021→          <RotateCcw className="w-3.5 h-3.5" />
+  1022→  1022→          Segel Ulang (Main Lagi)
+  1023→  1023→        </button>
+  1024→  1024→      </div>
+  1025→  1025→
+  1026→  1026→      {/* Footer note */}
+  1027→  1027→      <div className="mt-8 text-center">
+  1028→  1028→        <p className="inline-flex items-center gap-2 text-[10px] font-mono tracking-[0.4em] uppercase text-purple-400/60">
+  1029→  1029→          <Diamond className="w-2.5 h-2.5 fill-purple-400/30" />
+  1030→  1030→          Voucher terdaftar di log ROOM
+  1031→  1031→          <Diamond className="w-2.5 h-2.5 fill-purple-400/30" />
+  1032→  1032→        </p>
+  1033→  1033→      </div>
+  1034→  1034→
+  1035→  1035→      {/* Secondary voucher CTA — for when physical gift is delivered */}
+  1036→  1036→      <div className="mt-12 pt-8 border-t border-purple-500/15 text-center">
+  1037→  1037→        <p className="text-[10px] font-mono tracking-[0.4em] uppercase text-amber-400/70 mb-2">
+  1038→  1038→          ◆ VOUCHER SEKUNDER · UNTUK KIRIE ◆
+  1039→  1039→        </p>
+  1040→  1040→        <p className="text-xs text-white/50 max-w-md mx-auto mb-4 leading-relaxed">
+  1041→  1041→          Setelah hadiah aslinya diambil, ada satu voucher lagi yang harus kamu (Kirie) robek
+  1042→  1042→          untuk konfirmasi. Cuma Kirie yang bisa robek — perlu jawaban code rahasia.
+  1043→  1043→        </p>
+  1044→  1044→        <button
+  1045→  1045→          onClick={onProceedToVoucher}
+  1046→  1046→          onMouseEnter={() => sfx.hover()}
+  1047→  1047→          className="inline-flex items-center gap-2 px-5 py-2.5 border border-amber-500/50 text-amber-300 hover:bg-amber-500/10 text-xs uppercase tracking-widest transition-colors"
+  1048→  1048→        >
+  1049→  1049→          <Unlock className="w-3.5 h-3.5" />
+  1050→  1050→          Buka Voucher Sekunder
+  1051→  1051→          <ChevronRight className="w-3.5 h-3.5" />
+  1052→  1052→        </button>
+  1053→  1053→      </div>
+  1054→  1054→    </motion.div>
+  1055→  1055→  )
+  1056→  1056→}
+  1057→  1057→
+  1058→  1058→// ============================================================
+  1059→  1059→//  VOUCHER TEAR — only Kirie can tear (with secret code)
+  1060→  1060→// ============================================================
+  1061→  1061→function VoucherTear({ onBack }: { onBack: () => void }) {
+  1062→  1062→  const [codeInput, setCodeInput] = useState("")
+  1063→  1063→  const [codeUnlocked, setCodeUnlocked] = useState(false)
+  1064→  1064→  const [wrongCode, setWrongCode] = useState(false)
+  1065→  1065→  const [torn, setTorn] = useState(false)
+  1066→  1066→
+  1067→  1067→  const handleSubmit = (e: React.FormEvent) => {
+  1068→  1068→    e.preventDefault()
+  1069→  1069→    // Exact match required (case-sensitive, === comparison)
+  1070→  1070→    if (codeInput === SECRET_ANSWER) {
+  1071→  1071→      setCodeUnlocked(true)
+  1072→  1072→      sfx.reveal()
+  1073→  1073→      sfx.roomOpen()
+  1074→  1074→    } else {
+  1075→  1075→      setWrongCode(true)
+  1076→  1076→      sfx.lose()
+  1077→  1077→      setTimeout(() => setWrongCode(false), 600)
+  1078→  1078→    }
+  1079→  1079→  }
+  1080→  1080→
+  1081→  1081→  if (torn) {
+  1082→  1082→    return <TornVoucherComplete onBack={onBack} />
+  1083→  1083→  }
+  1084→  1084→
+  1085→  1085→  return (
+  1086→  1086→    <motion.div
+  1087→  1087→      initial={{ opacity: 0, y: 20 }}
+  1088→  1088→      animate={{ opacity: 1, y: 0 }}
+  1089→  1089→      transition={{ duration: 0.6 }}
+  1090→  1090→      className="mt-10"
+  1091→  1091→    >
+  1092→  1092→      <div className="text-center mb-6">
+  1093→  1093→        <p className="text-[10px] font-mono tracking-[0.5em] text-amber-400/70 uppercase mb-2">
+  1094→  1094→          ◆ VOUCHER SEKUNDER · TEAR PROTOCOL ◆
+  1095→  1095→        </p>
+  1096→  1096→        <h1 className="text-3xl sm:text-5xl font-black uppercase leading-tight">
+  1097→  1097→          Tear the <span className="text-amber-400">Voucher</span>
+  1098→  1098→        </h1>
+  1099→  1099→        <p className="text-xs text-white/50 mt-3 max-w-md mx-auto leading-relaxed">
+  1100→  1100→          Voucher ini cuma bisa dirobek oleh Kirie. Jawab pertanyaan di bawah dengan exact match (case-sensitive).
+  1101→  1101→        </p>
+  1102→  1102→      </div>
+  1103→  1103→
+  1104→  1104→      {/* Code entry form (only if not unlocked) */}
+  1105→  1105→      {!codeUnlocked ? (
+  1106→  1106→        <motion.form
+  1107→  1107→          onSubmit={handleSubmit}
+  1108→  1108→          animate={wrongCode ? { x: [-8, 8, -6, 6, 0] } : {}}
+  1109→  1109→          transition={{ duration: 0.4 }}
+  1110→  1110→          className="max-w-md mx-auto"
+  1111→  1111→        >
+  1112→  1112→          <div className="p-5 border border-amber-500/30 bg-amber-950/10 mb-6">
+  1113→  1113→            <div className="flex items-center gap-2 mb-3">
+  1114→  1114→              <Lock className="w-4 h-4 text-amber-400" />
+  1115→  1115→              <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-amber-400/80">
+  1116→  1116→                Kirie Verification
+  1117→  1117→              </p>
+  1118→  1118→            </div>
+  1119→  1119→            <p className="text-sm text-white/80 mb-4 leading-relaxed">
+  1120→  1120→              {SECRET_QUESTION}
+  1121→  1121→            </p>
+  1122→  1122→            <input
+  1123→  1123→              type="text"
+  1124→  1124→              value={codeInput}
+  1125→  1125→              onChange={(e) => setCodeInput(e.target.value)}
+  1126→  1126→              placeholder="Type your answer..."
+  1127→  1127→              autoComplete="off"
+  1128→  1128→              spellCheck={false}
+  1129→  1129→              className="w-full px-3 py-3 bg-black/60 border border-amber-500/40 outline-none text-white text-sm font-mono focus:border-amber-400 transition-colors"
+  1130→  1130→            />
+  1131→  1131→            {wrongCode && (
+  1132→  1132→              <motion.p
+  1133→  1133→                initial={{ opacity: 0 }}
+  1134→  1134→                animate={{ opacity: 1 }}
+  1135→  1135→                className="text-xs text-red-400 mt-2 font-mono tracking-widest uppercase"
+  1136→  1136→              >
+  1137→  1137→                ✗ Wrong answer. Bukan Kirie.
+  1138→  1138→              </motion.p>
+  1139→  1139→            )}
+  1140→  1140→          </div>
+  1141→  1141→          <div className="flex justify-center gap-3">
+  1142→  1142→            <button
+  1143→  1143→              type="submit"
+  1144→  1144→              onMouseEnter={() => sfx.hover()}
+  1145→  1145→              className="inline-flex items-center gap-2 px-5 py-3 border-2 border-amber-500/60 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 text-xs uppercase tracking-widest transition-colors"
+  1146→  1146→            >
+  1147→  1147→              <Unlock className="w-4 h-4" />
+  1148→  1148→              Verify
+  1149→  1149→            </button>
+  1150→  1150→            <button
+  1151→  1151→              type="button"
+  1152→  1152→              onClick={onBack}
+  1153→  1153→              onMouseEnter={() => sfx.hover()}
+  1154→  1154→              className="inline-flex items-center gap-2 px-5 py-3 border border-white/20 text-white/60 hover:border-white/40 text-xs uppercase tracking-widest transition-colors"
+  1155→  1155→            >
+  1156→  1156→              <ArrowLeft className="w-3.5 h-3.5" />
+  1157→  1157→              Back
+  1158→  1158→            </button>
+  1159→  1159→          </div>
+  1160→  1160→          <p className="text-[10px] text-white/30 mt-4 text-center italic">
+  1161→  1161→            Case-sensitive · exact match required
+  1162→  1162→          </p>
+  1163→  1163→        </motion.form>
+  1164→  1164→      ) : (
+  1165→  1165→        <TearableVoucher onTorn={() => setTorn(true)} />
+  1166→  1166→      )}
+  1167→  1167→    </motion.div>
+  1168→  1168→  )
+  1169→  1169→}
+  1170→  1170→
+  1171→  1171→// ============================================================
+  1172→  1172→//  Tearable voucher — slash to tear (after code verified)
+  1173→  1173→// ============================================================
+  1174→  1174→function TearableVoucher({ onTorn }: { onTorn: () => void }) {
+  1175→  1175→  const [tearProgress, setTearProgress] = useState(0) // 0-100
+  1176→  1176→  const [slashes, setSlashes] = useState<{ id: number; x1: number; y1: number; x2: number; y2: number }[]>([])
+  1177→  1177→  const [dragging, setDragging] = useState(false)
+  1178→  1178→  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
+  1179→  1179→  const [currentPos, setCurrentPos] = useState<{ x: number; y: number } | null>(null)
+  1180→  1180→  const slashIdRef = useRef(0)
+  1181→  1181→  const voucherRef = useRef<HTMLDivElement>(null)
+  1182→  1182→  const tornRef = useRef(false)
+  1183→  1183→
+  1184→  1184→  const getRelativePos = (e: React.MouseEvent | React.TouchEvent) => {
+  1185→  1185→    if (!voucherRef.current) return { x: 0, y: 0 }
+  1186→  1186→    const rect = voucherRef.current.getBoundingClientRect()
+  1187→  1187→    let clientX: number, clientY: number
+  1188→  1188→    if ("touches" in e) {
+  1189→  1189→      clientX = e.touches[0]?.clientX ?? 0
+  1190→  1190→      clientY = e.touches[0]?.clientY ?? 0
+  1191→  1191→    } else {
+  1192→  1192→      clientX = e.clientX
+  1193→  1193→      clientY = e.clientY
+  1194→  1194→    }
+  1195→  1195→    return {
+  1196→  1196→      x: ((clientX - rect.left) / rect.width) * 100,
+  1197→  1197→      y: ((clientY - rect.top) / rect.height) * 100,
+  1198→  1198→    }
+  1199→  1199→  }
+  1200→  1200→
+  1201→  1201→  // The voucher needs to be slashed horizontally across the middle
+  1202→  1202→  // (or any direction — we count progress based on horizontal extent of slash)
+  1203→  1203→  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
+  1204→  1204→    if (tornRef.current) return
+  1205→  1205→    e.preventDefault()
+  1206→  1206→    const pos = getRelativePos(e)
+  1207→  1207→    setDragging(true)
+  1208→  1208→    setDragStart(pos)
+  1209→  1209→    setCurrentPos(pos)
+  1210→  1210→  }
+  1211→  1211→
+  1212→  1212→  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+  1213→  1213→    if (!dragging || tornRef.current) return
+  1214→  1214→    e.preventDefault()
+  1215→  1215→    const pos = getRelativePos(e)
+  1216→  1216→    setCurrentPos(pos)
+  1217→  1217→
+  1218→  1218→    // Add a slash visual
+  1219→  1219→    if (dragStart) {
+  1220→  1220→      const slashId = ++slashIdRef.current
+  1221→  1221→      setSlashes((p) => [
+  1222→  1222→        ...p,
+  1223→  1223→        { id: slashId, x1: dragStart.x, y1: dragStart.y, x2: pos.x, y2: pos.y },
+  1224→  1224→      ])
+  1225→  1225→      sfx.slash()
+  1226→  1226→      setTimeout(() => {
+  1227→  1227→        setSlashes((p) => p.filter((s) => s.id !== slashId))
+  1228→  1228→      }, 400)
+  1229→  1229→
+  1230→  1230→      // Calculate progress based on horizontal extent of the slash
+  1231→  1231→      const horizontalExtent = Math.abs(pos.x - dragStart.x)
+  1232→  1232→      // Also count distance from center y
+  1233→  1233→      const verticalFromCenter = Math.abs(pos.y - 50)
+  1234→  1234→      const isAcrossMiddle = verticalFromCenter < 30
+  1235→  1235→
+  1236→  1236→      if (isAcrossMiddle) {
+  1237→  1237→        setTearProgress((prev) => Math.max(prev, horizontalExtent))
+  1238→  1238→      }
+  1239→  1239→
+  1240→  1240→      setDragStart(pos)
+  1241→  1241→    }
+  1242→  1242→  }
+  1243→  1243→
+  1244→  1244→  const handleEnd = () => {
+  1245→  1245→    setDragging(false)
+  1246→  1246→    setDragStart(null)
+  1247→  1247→    setCurrentPos(null)
+  1248→  1248→    // Check if progress is sufficient
+  1249→  1249→    if (tearProgress >= 70 && !tornRef.current) {
+  1250→  1250→      tornRef.current = true
+  1251→  1251→      sfx.tear()
+  1252→  1252→      setTimeout(() => sfx.win(), 400)
+  1253→  1253→      setTimeout(() => onTorn(), 1500)
+  1254→  1254→    }
+  1255→  1255→  }
+  1256→  1256→
+  1257→  1257→  return (
+  1258→  1258→    <motion.div
+  1259→  1259→      initial={{ opacity: 0, scale: 0.95 }}
+  1260→  1260→      animate={{ opacity: 1, scale: 1 }}
+  1261→  1261→      transition={{ duration: 0.5 }}
+  1262→  1262→      className="max-w-md mx-auto"
+  1263→  1263→    >
+  1264→  1264→      <div className="text-center mb-4">
+  1265→  1265→        <motion.div
+  1266→  1266→          initial={{ scale: 0 }}
+  1267→  1267→          animate={{ scale: 1 }}
+  1268→  1268→          transition={{ type: "spring", stiffness: 200 }}
+  1269→  1269→          className="inline-flex items-center gap-2 px-3 py-1 border border-green-500/50 bg-green-500/10 mb-3"
+  1270→  1270→        >
+  1271→  1271→          <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+  1272→  1272→          <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-green-300">
+  1273→  1273→            Verified · Kirie
+  1274→  1274→          </span>
+  1275→  1275→        </motion.div>
+  1276→  1276→        <p className="text-sm text-white/70">
+  1277→  1277→          Slash melalui voucher untuk merobeknya. Drag horisontal lewat tengah.
+  1278→  1278→        </p>
+  1279→  1279→      </div>
+  1280→  1280→
+  1281→  1281→      {/* Tearable voucher */}
+  1282→  1282→      <motion.div
+  1283→  1283→        animate={
+  1284→  1284→          tornRef.current
+  1285→  1285→            ? {
+  1286→  1286→                // Tear animation: split into two halves
+  1287→  1287→              }
+  1288→  1288→            : {}
+  1289→  1289→        }
+  1290→  1290→        className="relative"
+  1291→  1291→      >
+  1292→  1292→        <div
+  1293→  1293→          ref={voucherRef}
+  1294→  1294→          onMouseDown={handleStart}
+  1295→  1295→          onMouseMove={handleMove}
+  1296→  1296→          onMouseUp={handleEnd}
+  1297→  1297→          onMouseLeave={handleEnd}
+  1298→  1298→          onTouchStart={handleStart}
+  1299→  1299→          onTouchMove={handleMove}
+  1300→  1300→          onTouchEnd={handleEnd}
+  1301→  1301→          className={`relative p-6 border-2 border-amber-500/50 bg-gradient-to-b from-amber-950/30 to-black overflow-hidden touch-none ${
+  1302→  1302→            tornRef.current ? "" : "cursor-crosshair"
+  1303→  1303→          }`}
+  1304→  1304→        >
+  1305→  1305→          {/* Both halves for tear animation */}
+  1306→  1306→          <motion.div
+  1307→  1307→            animate={
+  1308→  1308→              tornRef.current
+  1309→  1309→                ? { x: -200, rotate: -15, opacity: 0 }
+  1310→  1310→                : { x: 0, rotate: 0, opacity: 1 }
+  1311→  1311→            }
+  1312→  1312→            transition={{ duration: 1 }}
+  1313→  1313→            className="relative text-center"
+  1314→  1314→          >
+  1315→  1315→            <motion.div
+  1316→  1316→              initial={{ scale: 0 }}
+  1317→  1317→              animate={{ scale: 1 }}
+  1318→  1318→              transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+  1319→  1319→              className="inline-flex w-12 h-12 rounded-full bg-amber-500/20 border-2 border-amber-400 items-center justify-center mb-3"
+  1320→  1320→            >
+  1321→  1321→              <GiftIcon className="w-5 h-5 text-amber-200" />
+  1322→  1322→            </motion.div>
+  1323→  1323→
+  1324→  1324→            <p className="text-[10px] font-mono tracking-[0.4em] text-amber-400/70 uppercase mb-2">
+  1325→  1325→              VOUCHER · TEAR ME
+  1326→  1326→            </p>
+  1327→  1327→            <h3 className="text-xl sm:text-2xl font-black uppercase text-white mb-1">
+  1328→  1328→              Voucher Sekunder
+  1329→  1329→            </h3>
+  1330→  1330→            <p className="text-xs text-white/40 italic mb-4">
+  1331→  1331→              <ruby>
+  1332→  1332→                贈り物<rt>おくりもの</rt>
+  1333→  1333→              </ruby>{" "}
+  1334→  1334→              · Confirmation
+  1335→  1335→            </p>
+  1336→  1336→
+  1337→  1337→            <p className="text-xs text-white/70 leading-relaxed mb-4">
+  1338→  1338→              Voucher ini sebagai bukti bahwa hadiah fisik sudah diserahkan ke Yava.
+  1339→  1339→              Robek untuk konfirmasi. Hanya Kirie yang bisa merobeknya.
+  1340→  1340→            </p>
+  1341→  1341→
+  1342→  1342→            {/* Three-column table */}
+  1343→  1343→            <div className="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b border-amber-500/30">
+  1344→  1344→              <div>
+  1345→  1345→                <p className="text-[9px] font-mono tracking-widest text-amber-400/70 uppercase mb-1">Penerima</p>
+  1346→  1346→                <p className="text-xs font-bold text-white">Yava</p>
+  1347→  1347→              </div>
+  1348→  1348→              <div>
+  1349→  1349→                <p className="text-[9px] font-mono tracking-widest text-amber-400/70 uppercase mb-1">Pemberi</p>
+  1350→  1350→                <p className="text-xs font-bold text-white">Kirie</p>
+  1351→  1351→              </div>
+  1352→  1352→              <div>
+  1353→  1353→                <p className="text-[9px] font-mono tracking-widest text-amber-400/70 uppercase mb-1">Tanggal</p>
+  1354→  1354→                <p className="text-xs font-bold text-white">22·06</p>
+  1355→  1355→              </div>
+  1356→  1356→            </div>
+  1357→  1357→
+  1358→  1358→            <div className="flex items-center justify-center gap-2">
+  1359→  1359→              <Diamond className="w-2.5 h-2.5 text-amber-400 fill-amber-400/30" />
+  1360→  1360→              <p className="text-[10px] font-mono tracking-[0.3em] text-amber-300 uppercase">
+  1361→  1361→                Berlaku Selamanya · 1× Pakai
+  1362→  1362→              </p>
+  1363→  1363→              <Diamond className="w-2.5 h-2.5 text-amber-400 fill-amber-400/30" />
+  1364→  1364→            </div>
+  1365→  1365→          </motion.div>
+  1366→  1366→
+  1367→  1367→          {/* Slash trail overlay */}
+  1368→  1368→          <svg className="absolute inset-0 w-full h-full pointer-events-none">
+  1369→  1369→            {slashes.map((s) => (
+  1370→  1370→              <motion.line
+  1371→  1371→                key={s.id}
+  1372→  1372→                x1={`${s.x1}%`}
+  1373→  1373→                y1={`${s.y1}%`}
+  1374→  1374→                x2={`${s.x2}%`}
+  1375→  1375→                y2={`${s.y2}%`}
+  1376→  1376→                stroke="#fbbf24"
+  1377→  1377→                strokeWidth="3"
+  1378→  1378→                strokeLinecap="round"
+  1379→  1379→                initial={{ pathLength: 0, opacity: 1 }}
+  1380→  1380→                animate={{ pathLength: 1, opacity: [1, 1, 0] }}
+  1381→  1381→                transition={{ duration: 0.4 }}
+  1382→  1382→                style={{ filter: "drop-shadow(0 0 8px #fbbf24)" }}
+  1383→  1383→              />
+  1384→  1384→            ))}
+  1385→  1385→            {dragging && dragStart && currentPos && (
+  1386→  1386→              <line
+  1387→  1387→                x1={`${dragStart.x}%`}
+  1388→  1388→                y1={`${dragStart.y}%`}
+  1389→  1389→                x2={`${currentPos.x}%`}
+  1390→  1390→                y2={`${currentPos.y}%`}
+  1391→  1391→                stroke="#fbbf24"
+  1392→  1392→                strokeWidth="2"
+  1393→  1393→                strokeLinecap="round"
+  1394→  1394→                opacity={0.6}
+  1395→  1395→                style={{ filter: "drop-shadow(0 0 4px #fbbf24)" }}
+  1396→  1396→              />
+  1397→  1397→            )}
+  1398→  1398→          </svg>
+  1399→  1399→
+  1400→  1400→          {/* Torn effect — jagged line in the middle */}
+  1401→  1401→          {tornRef.current && (
+  1402→  1402→            <motion.div
+  1403→  1403→              initial={{ opacity: 0 }}
+  1404→  1404→              animate={{ opacity: 1 }}
+  1405→  1405→              className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 pointer-events-none"
+  1406→  1406→              style={{ width: "4px" }}
+  1407→  1407→            >
+  1408→  1408→              <svg viewBox="0 0 4 400" className="w-full h-full" preserveAspectRatio="none">
+  1409→  1409→                <motion.path
+  1410→  1410→                  d="M 2 0 L 0 50 L 4 100 L 0 150 L 4 200 L 0 250 L 4 300 L 0 350 L 2 400"
+  1411→  1411→                  stroke="#fbbf24"
+  1412→  1412→                  strokeWidth="2"
+  1413→  1413→                  fill="none"
+  1414→  1414→                  style={{ filter: "drop-shadow(0 0 6px #fbbf24)" }}
+  1415→  1415→                />
+  1416→  1416→              </svg>
+  1417→  1417→            </motion.div>
+  1418→  1418→          )}
+  1419→  1419→        </div>
+  1420→  1420→
+  1421→  1421→        {/* Tear progress bar */}
+  1422→  1422→        <div className="mt-3">
+  1423→  1423→          <div className="flex items-center justify-between text-[10px] font-mono text-amber-400/60 mb-1">
+  1424→  1424→            <span>Tear Progress</span>
+  1425→  1425→            <span>{Math.min(100, Math.round(tearProgress))}%</span>
+  1426→  1426→          </div>
+  1427→  1427→          <div className="w-full h-1 bg-white/10">
+  1428→  1428→            <div
+  1429→  1429→              className="h-full bg-amber-400 transition-all"
+  1430→  1430→              style={{ width: `${Math.min(100, tearProgress)}%`, boxShadow: "0 0 6px #fbbf24" }}
+  1431→  1431→            />
+  1432→  1432→          </div>
+  1433→  1433→          <p className="text-[10px] text-white/40 mt-2 text-center">
+  1434→  1434→            Drag horisontal lewat tengah voucher. Min 70% untuk robek.
+  1435→  1435→          </p>
+  1436→  1436→        </div>
+  1437→  1437→      </motion.div>
+  1438→  1438→    </motion.div>
+  1439→  1439→  )
+  1440→  1440→}
+  1441→  1441→
+  1442→  1442→// ============================================================
+  1443→  1443→//  Torn voucher complete screen
+  1444→  1444→// ============================================================
+  1445→  1445→function TornVoucherComplete({ onBack }: { onBack: () => void }) {
+  1446→  1446→  return (
+  1447→  1447→    <motion.div
+  1448→  1448→      initial={{ opacity: 0 }}
+  1449→  1449→      animate={{ opacity: 1 }}
+  1450→  1450→      transition={{ duration: 0.6 }}
+  1451→  1451→      className="mt-10 text-center"
+  1452→  1452→    >
+  1453→  1453→      <motion.div
+  1454→  1454→        initial={{ scale: 0, rotate: -180 }}
+  1455→  1455→        animate={{ scale: 1, rotate: 0 }}
+  1456→  1456→        transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+  1457→  1457→        className="inline-flex w-20 h-20 rounded-full bg-green-500/20 border-2 border-green-400 items-center justify-center mb-6"
+  1458→  1458→      >
+  1459→  1459→        <Heart className="w-9 h-9 text-green-300 fill-green-400/30" />
+  1460→  1460→      </motion.div>
+  1461→  1461→
+  1462→  1462→      <p className="text-[10px] font-mono tracking-[0.5em] text-green-400/70 uppercase mb-2">
+  1463→  1463→        ◆ VOUCHER DIREMEH ◆
+  1464→  1464→      </p>
+  1465→  1465→      <h1 className="text-3xl sm:text-5xl font-black uppercase mb-4">
+  1466→  1466→        Selesai.
+  1467→  1467→      </h1>
+  1468→  1468→      <p className="text-sm text-white/70 max-w-md mx-auto mb-2 leading-relaxed">
+  1469→  1469→        Voucher sekunder sudah diremeh oleh Kirie. Hadiah fisik resmi diterima oleh Yava.
+  1470→  1470→      </p>
+  1471→  1471→      <p className="text-xs text-white/50 max-w-md mx-auto mb-8 italic leading-relaxed">
+  1472→  1472→        Terima kasih sudah mau main sampai sini, Yav. Selamat ulang tahun yang ke-21.
+  1473→  1473→        Semoga tahun ini jadi tahun di mana kamu makin percaya sama kemampuan kamu sendiri.
+  1474→  1474→      </p>
+  1475→  1475→
+  1476→  1476→      <div className="flex items-center justify-center gap-2 mb-8">
+  1477→  1477→        <Diamond className="w-2.5 h-2.5 fill-purple-400/30 text-purple-400" />
+  1478→  1478→        <p className="text-[10px] font-mono tracking-[0.4em] uppercase text-purple-400/60">
+  1479→  1479→          Transaksi tercatat di log ROOM
+  1480→  1480→        </p>
+  1481→  1481→        <Diamond className="w-2.5 h-2.5 fill-purple-400/30 text-purple-400" />
+  1482→  1482→      </div>
+  1483→  1483→
+  1484→  1484→      <Link
+  1485→  1485→        href="/home"
+  1486→  1486→        onClick={() => sfx.click()}
+  1487→  1487→        onMouseEnter={() => sfx.hover()}
+  1488→  1488→        className="inline-flex items-center gap-2 px-6 py-3 border-2 border-purple-500/60 bg-purple-500/15 text-purple-200 hover:bg-purple-500/25 text-xs uppercase tracking-widest transition-colors"
+  1489→  1489→      >
+  1490→  1490→        <ArrowLeft className="w-3.5 h-3.5" />
+  1491→  1491→        Kembali ke Beranda
+  1492→  1492→      </Link>
+  1493→  1493→    </motion.div>
+  1494→  1494→  )
+  1495→  1495→}
+  1496→  1496→
