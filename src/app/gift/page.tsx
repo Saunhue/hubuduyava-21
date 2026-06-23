@@ -999,7 +999,7 @@ function ClaimedGift({
                 className="overflow-hidden"
               >
                 <p className="text-sm text-white/70 italic leading-relaxed mb-2">
-                  &ldquo;Selamat, kamu berhasil melewati Scan, Counter Shock, dan Injection Shot. Hadiah aslinya nggak se-galak itu kok — ini cuma aku bikin rame aja. Tapi intinya: selamat ulang tahun, Yav. Nanti ketemu ya.&rdquo;
+                  &ldquo;Selamat, kamu berhasil melewati Scan, Counter Shock, dan Injection Shot. Hadiah aslinya nggak se-keren itu kok — ini cuma akunya aja yang bikin rame wwww. Tapi intinya: selamat ulang tahun, Yav. Nanti ketemu ya.&rdquo;
                 </p>
                 <p className="text-xs text-purple-400 text-right">— Kirie</p>
               </motion.div>
@@ -1044,7 +1044,7 @@ function ClaimedGift({
           ◆ VOUCHER SEKUNDER · UNTUK KIRIE ◆
         </p>
         <p className="text-xs text-white/50 max-w-md mx-auto mb-4 leading-relaxed">
-          Setelah hadiah aslinya diambil, ada satu voucher lagi yang harus kamu (Kirie) robek
+          Setelah hadiah aslinya diambil, ada satu voucher lagi yang harus Kirie robek
           untuk konfirmasi. Cuma Kirie yang bisa robek — perlu jawaban code rahasia.
         </p>
         <button
@@ -1480,7 +1480,7 @@ function TearableVoucher({ onTorn }: { onTorn: () => void }) {
           </motion.div>
         )}
 
-        {/* "DIREMEH" stamp — angled red stamp across the voucher when torn */}
+        {/* "REDEEMED" stamp — angled red stamp across the voucher when torn */}
         {torn && (
           <motion.div
             initial={{ scale: 0, opacity: 0, rotate: -25 }}
@@ -1503,7 +1503,7 @@ function TearableVoucher({ onTorn }: { onTorn: () => void }) {
 
       {!torn && (
         <p className="text-[10px] text-white/40 mt-3 text-center">
-          ✂ Drag melalui garis putus-putus untuk merobek
+          Drag melalui garis putus-putus untuk merobek
         </p>
       )}
     </motion.div>
@@ -1533,13 +1533,13 @@ function TornCompletionNotice({ onBack }: { onBack: () => void }) {
       </motion.div>
 
       <p className="text-[10px] font-mono tracking-[0.5em] text-green-400/70 uppercase mb-2">
-        ◆ VOUCHER DIREMEH ◆
+        ◆ VOUCHER REDEEMED ◆
       </p>
       <h2 className="text-3xl sm:text-5xl font-black uppercase mb-4">
         Selesai.
       </h2>
       <p className="text-sm text-white/70 max-w-md mx-auto mb-2 leading-relaxed">
-        Voucher sekunder sudah diremeh oleh Kirie. Hadiah fisik resmi diterima oleh Yava.
+        Voucher sekunder sudah tertebus oleh Kirie. Hadiah fisik resmi diterima oleh Yava.
       </p>
       <p className="text-xs text-white/50 max-w-md mx-auto mb-8 italic leading-relaxed">
         Terima kasih sudah mau main sampai sini, Yav. Selamat ulang tahun yang ke-21.
